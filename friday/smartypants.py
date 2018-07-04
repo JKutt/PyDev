@@ -35,68 +35,6 @@ for go in range(len(patch.readings[0].Vdp)):
 	min_iter = 3
 	num_windows = timeTo.size
 
-	# for iter in range(12):
-	#     c, tau, M, error, vs = DCIP.getColeCole(decay,
-	#                                             c,
-	#                                             tau,
-	#                                             r,
-	#                                             timeCenter,
-	#                                             w_)
-	#     delta_error = abs(stored_error - error) / ((stored_error + error) / 2.)
-	#     print("iter: %i | c: %f | tau: %e | M: %f | error: %f | delta: %f" %
-	#           (iter, c, tau, M, error, delta_error))
-	#     stored_error = error
-	#     # r = r / 2.
-	#     if delta_error > 0.002 or iter < min_iter:
-	#         r = r / 2.
-	#     elif delta_error < 0.002:
-	#         print("convergence accomplished! DONE")
-	#         break
-
-	# print(c, tau, M, error)
-	# percent_diff = (
-	#     np.sum((np.abs((decay - vs)) /
-	#            ((vs + decay) / 2.)) * w_)) / num_windows
-	# global_mean = np.abs((decay - vs) /
-	#            ((vs + decay) / 2.) * w_)
-	# print(percent_diff)
-	# print("mean diff: ", np.abs((decay - vs)) /
-	#            ((vs + decay) / 2.) * w_)
-	# print("mean diff Global", np.mean(global_mean))
-	# print("median diff Global", np.median(global_mean))
-	# print("median diff Global", np.std(global_mean))
-	# print("diff: ", np.abs((decay - vs)))
-	# print(decay)
-
-	fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
-
-	ax1.plot(timeCenter, decay, 'o-')
-	# ax1.plot(timeCenter, vs, 'o-r')
-	# ax2.hist(global_mean, 10)
-	# ax3.plot(timeCenter, global_mean, 'o-')
-
-	# for i in range(1):
-	#     for j in range(len(patch.readings[i].Vdp)):
-	#         decay = patch.readings[i].Vdp[j].Vs
-	#         plt.plot(timeCenter, decay, 'o-')
-	# plt.show()
-
-
-	# rho = []
-	# mx =[]
-
-	# for rdg in range(len(patch.readings)):
-	# 	for dp in range(len(patch.readings[rdg].Vdp)):
-	# 		rho.append(patch.readings[rdg].Vdp[dp].Rho)
-	# 		mx.append(patch.readings[rdg].Vdp[dp].Mx)
-
-	# rho = np.asarray(np.abs(rho))
-	# mx = np.asarray(mx)
-	deriv = np.diff(decay)
-	ax4.plot(timeCenter[1:], deriv, '-ob')
-	ax1.grid(True)
-	ax1.plot(timeCenter[1:], deriv, '-ob')
-
 	win_length = 7
 	zero_pad = (win_length - 1) / 2.
 	sides = zero_pad
@@ -105,6 +43,7 @@ for go in range(len(patch.readings[0].Vdp)):
 	reject = []
 	value = []
 	positive_deriv = 0
+	deriv = np.diff(decay)
 	for index in range(deriv.size):
 		win = np.zeros(win_length)
 		if deriv[index] >= 0:
@@ -162,9 +101,73 @@ for go in range(len(patch.readings[0].Vdp)):
 		# 	pass
 	if len(value) > (0.2 * deriv.size):
 		print("rejected")
-	# if positive_deriv > 2:
-	# 	print("rejected bc positive")
-	# ax4.plot(timeCenter, global_mean, '.')
-	ax4.plot(reject, value, 'or')
+	else:
+		print("passing to cole-cole")
+		for iter in range(12):
+		    c, tau, M, error, vs = DCIP.getColeCole(decay,
+		                                            c,
+		                                            tau,
+		                                            r,
+		                                            timeCenter,
+		                                            w_)
+		    delta_error = abs(stored_error - error) / ((stored_error + error) / 2.)
+		    # print("iter: %i | c: %f | tau: %e | M: %f | error: %f | delta: %f" %
+		    #       (iter, c, tau, M, error, delta_error))
+		    stored_error = error
+		    # r = r / 2.
+		    if delta_error > 0.002 or iter < min_iter:
+		        r = r / 2.
+		    elif delta_error < 0.002:
+		        print("convergence accomplished! DONE")
+		        break
 
-	plt.show()
+		print(c, tau, M, error)
+		# percent_diff = (
+		#     np.sum((np.abs((decay - vs)) /
+		#            ((vs + decay) / 2.)) * w_)) / num_windows
+		# global_mean = np.abs((decay - vs) /
+		#            ((vs + decay) / 2.) * w_)
+		# print(percent_diff)
+		# print("mean diff: ", np.abs((decay - vs)) /
+		#            ((vs + decay) / 2.) * w_)
+		# print("mean diff Global", np.mean(global_mean))
+		# print("median diff Global", np.median(global_mean))
+		# print("median diff Global", np.std(global_mean))
+		# print("diff: ", np.abs((decay - vs)))
+		# print(decay)
+
+		# fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+
+		# ax1.plot(timeCenter, decay, 'o-')
+		# # ax1.plot(timeCenter, vs, 'o-r')
+		# # ax2.hist(global_mean, 10)
+		# # ax3.plot(timeCenter, global_mean, 'o-')
+
+		# # for i in range(1):
+		# #     for j in range(len(patch.readings[i].Vdp)):
+		# #         decay = patch.readings[i].Vdp[j].Vs
+		# #         plt.plot(timeCenter, decay, 'o-')
+		# # plt.show()
+
+
+		# # rho = []
+		# # mx =[]
+
+		# # for rdg in range(len(patch.readings)):
+		# # 	for dp in range(len(patch.readings[rdg].Vdp)):
+		# # 		rho.append(patch.readings[rdg].Vdp[dp].Rho)
+		# # 		mx.append(patch.readings[rdg].Vdp[dp].Mx)
+
+		# # rho = np.asarray(np.abs(rho))
+		# # mx = np.asarray(mx)
+		# deriv = np.diff(decay)
+		# ax4.plot(timeCenter[1:], deriv, '-ob')
+		# ax1.grid(True)
+		# ax1.plot(timeCenter[1:], deriv, '-ob')
+
+		# # if positive_deriv > 2:
+		# # 	print("rejected bc positive")
+		# # ax4.plot(timeCenter, global_mean, '.')
+		# ax4.plot(reject, value, 'or')
+
+		# plt.show()

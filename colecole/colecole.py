@@ -16,15 +16,24 @@ def getTime():
               3600, 3760, 3920]
     return timeFrom, timeTo
 
+def getTime1():
+    timeFrom = [1030, 1050, 1070, 1100, 1130, 1170,
+                1210, 1260, 1320, 1390, 1470, 1560,
+                1660, 1770]
+    timeTo = [1050, 1070, 1100, 1130, 1170,
+                1210, 1260, 1320, 1390, 1470, 1560,
+                1660, 1770, 1890]
+    return timeFrom, timeTo
 
-fileName = "/home/juan/Documents/DevProjects/testData/L5150-final.DAT"
+
+fileName = "P0.dat"
 patch = DCIP.loadDias(fileName)
-timeFrom, timeTo = getTime()
+timeFrom, timeTo = getTime1()
 timeTo = np.asarray(timeTo)
 timeFrom = np.asarray(timeFrom)
 timeCenter = (timeTo + timeFrom) / 2.
-decay = (patch.readings[0].Vdp[25].Vs /
-         patch.readings[0].Vdp[25].Vp)
+decay = (patch.readings[0].Vdp[0].Vs /
+         patch.readings[0].Vdp[0].Vp)
 w_ = np.ones(timeCenter.size)             # cole-cole weights
 w_[:3] = 0.3
 c = 0.65
@@ -53,8 +62,8 @@ for iter in range(12):
 print(c, tau, M, error)
 # print(decay)
 
-plt.plot(timeCenter, decay, 'o-')
-plt.plot(timeCenter, vs, 'o-r')
+plt.loglog(timeCenter, decay, 'o-')
+plt.loglog(timeCenter, vs, 'o-r')
 # for i in range(1):
 #     for j in range(len(patch.readings[i].Vdp)):
 #         decay = patch.readings[i].Vdp[j].Vs

@@ -4,7 +4,7 @@ from os.path import isfile, join, isdir
 
 # ==================================================================
 #  Setting Variables
-dir_path = ["/Users/juan/testData/G2000263.DAT"]  # use this for specific
+dir_path = ["/home/juan/Documents/DevProjects/testData/HC001857.DAT"]  # use this for specific
 
 # USE THIS FOR BULK NODE DIRECTORY PROCESSING
 # node_dir = "C:/Users/johnk/Projects/DATA/VR/"
@@ -15,6 +15,7 @@ shift = None                          # set amount of shift
 lat = None                             # set forced latitude
 longi = None                           # set forced longitude
 elev = None                            # sets elevation
+polar = -1                           # sets if polarity flip is required
 # ==================================================================
 
 
@@ -23,7 +24,8 @@ def processNode(path,
                 timeshift=None,
                 longitude=None,
                 latitude=None,
-                elevation=None):
+                elevation=None,
+                polarity=None):
     #  ===============================================================
     #  read file to check if force headers already exisit
     flag_shift = False                               # flag that shift present
@@ -39,6 +41,7 @@ def processNode(path,
                 flag_position = True
             if splitt[0] == "#Override Elevation":
                 flag_elevation = True
+
 
         csv.close()
         if flag_shift:
@@ -95,7 +98,7 @@ def processNode(path,
                     for lines in range(len(x)):
                         peices = x[lines].split(":")      # look for adc
                         if len(peices) > 1:
-                            if peices[0] == "#Override Elevation":
+                            if peices[0] == "#Override Elevation":                                
                                 x[lines] = "#Override Elevation:" + str(elevation) + "\n"
                         out_file.write("%s" % x[lines])   # write to file
 
@@ -104,6 +107,18 @@ def processNode(path,
                     out_file.write("%s" % force_elev)
                     for lines in range(len(x)):
                         out_file.write("%s" % x[lines])
+            if polarity is not None:
+                for lines in range(len(x)):
+                        peices = x[lines].split(":")      # look for adc
+                        if len(peices) > 1:
+                            if peices[0] == "#Conversion Factor (units/mV)":
+                                polarity_fixed_factor = int(peices[1]) * polar
+                                x[lines] = peices[0] + str(polarity_fixed_factor) + "\n"
+                        # out_file.write("%s" % x[lines])   # write to file
+                            if peices[0] == "#Conversion Factor (units/mA)":
+                                    polarity_fixed_factor = int(peices[1]) * polar
+                                    x[lines] = peices[0] + str(polarity_fixed_factor) + "\n"
+                        out_file.write("%s" % x[lines])   # write to file
 
             out_file.close()                          # close file
 
@@ -116,4 +131,5 @@ if __name__ == '__main__':
                 timeshift=shift,
                 latitude=lat,
                 longitude=longi,
-                elevation=elev)
+                elevation=elev,
+                polarity=polar)

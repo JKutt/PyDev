@@ -812,8 +812,8 @@ class JinDipole:
             self.Tx1 = float(InDpInfo.Tx1x)
         except:
             pass
-        self.Tx1x = float(VoltDpinfo.Tx1x)
-        self.Tx1y = float(VoltDpinfo.Tx1y)
+        self.Tx1x = float(InDpInfo.Tx1x)
+        self.Tx1y = float(InDpInfo.Tx1y)
         self.Tx1East = float(InDpInfo.Tx1East)
         self.Tx1North = float(InDpInfo.Tx1North)
         self.Tx1Elev = float(InDpInfo.Tx1Elev)

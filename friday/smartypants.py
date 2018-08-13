@@ -23,9 +23,9 @@ timeFrom, timeTo = getTime()
 timeTo = np.asarray(timeTo)
 timeFrom = np.asarray(timeFrom)
 timeCenter = (timeTo + timeFrom) / 2.
-for go in range(len(patch.readings[0].Vdp)):
-	decay = (patch.readings[0].Vdp[go].Vs /
-	         patch.readings[0].Vdp[go].Vp)
+for go in range(len(patch.readings[4].Vdp)):
+	decay = (patch.readings[4].Vdp[go].Vs /
+	         patch.readings[4].Vdp[go].Vp)
 	w_ = np.ones(timeCenter.size)             # cole-cole weights
 	w_[:3] = 0.3
 	c = 0.65
@@ -39,10 +39,11 @@ for go in range(len(patch.readings[0].Vdp)):
 	zero_pad = (win_length - 1) / 2.
 	sides = zero_pad
 	kappa = 1.4826
-	eta = 1.5
+	eta = 3
 	reject = []
 	value = []
 	positive_deriv = 0
+	# decay[14] = decay[14] - (0.38 * decay[14])
 	deriv = np.diff(decay)
 	for index in range(deriv.size):
 		win = np.zeros(win_length)
@@ -50,78 +51,89 @@ for go in range(len(patch.readings[0].Vdp)):
 			positive_deriv = positive_deriv + 1
 			reject.append(timeCenter[index + 1])
 			value.append(deriv[index])
-		# try:
-		# 	# if global_mean[index] > 0.3:
-		# 	# 	print("found Outlier") 
-		# 	# 	reject.append(timeCenter[index])
-		# 	# 	value.append(global_mean[index])
-		# 	if (index - (win_length - 1) / 2.) <= 0:
-		# 		diff = int(np.abs((index - ((win_length - 1) / 2.0))))
-		# 		win[diff:win_length] = deriv[0:(index + int(sides) + 1)]
-		# 		local_median = np.median(win)
-		# 		mean_abs_dev = np.median(np.abs(win - local_median))
-		# 		sigma = eta * mean_abs_dev
-		# 		lhs = np.abs(deriv[index] - local_median)
-		# 		rhs = eta * sigma
-		# 		# print("lhs: ", lhs, " rhs: ", rhs)
-		# 		# print("mad: ", global_mean, " lm: ", local_median)
-		# 		if lhs > rhs:
-		# 			print("found outlier")
-		# 			reject.append(timeCenter[index + 1])
-		# 			value.append(deriv[index])
-		# 	elif (index + (win_length - 1) / 2.) >= (deriv.size - 1):
-		# 		diff = int(np.abs((index - ((win_length - 1) / 2.0))))
-		# 		win[0:(win_length - 1) - diff] = deriv[(index - int(sides)) -1 :]
-		# 		local_median = np.median(win)
-		# 		mean_abs_dev = np.median(np.abs(win - local_median))
-		# 		sigma = eta * mean_abs_dev
-		# 		lhs = np.abs(deriv[index] - local_median)
-		# 		rhs = eta * sigma
-		# 		# print("lhs: ", lhs, " rhs: ", rhs)
-		# 		# print("mad: ", global_mean, " lm: ", local_median)
-		# 		if lhs > rhs:
-		# 			print("found outlier") 
-		# 			reject.append(timeCenter[index + 1])
-		# 			value.append(deriv[index])
-		# 	else:
-		# 		sides = int(sides)
-		# 		win = deriv[(index - sides):(index + sides)]
-		# 		local_median = np.median(win)
-		# 		mean_abs_dev = np.median(np.abs(win - local_median))
-		# 		sigma = eta * mean_abs_dev
-		# 		lhs = np.abs(deriv[index] - local_median)
-		# 		rhs = eta * sigma
-		# 		# print("lhs: ", lhs, " rhs: ", rhs)
-		# 		# print("mad: ", global_mean, " lm: ", local_median)
-		# 		if lhs > rhs:
-		# 			print("found outlier") 
-		# 			reject.append(timeCenter[index + 1])
-		# 			value.append(deriv[index])
-		# except:
-		# 	pass
-	if len(value) > (0.2 * deriv.size):
+
+		try:
+			# if global_mean[index] > 0.3:
+			# 	print("found Outlier") 
+			# 	reject.append(timeCenter[index])
+			# 	value.append(global_mean[index])
+			if (index - (win_length - 1) / 2.) <= 0:
+				diff = int(np.abs((index - ((win_length - 1) / 2.0))))
+				win[diff:win_length] = deriv[0:(index + int(sides) + 1)]
+				local_median = np.median(win)
+				mean_abs_dev = np.median(np.abs(win - local_median))
+				sigma = kappa * mean_abs_dev
+				lhs = np.abs(deriv[index] - local_median)
+				rhs = eta * sigma
+				# print("lhs: ", lhs, " rhs: ", rhs)
+				# print("mad: ", global_mean, " lm: ", local_median)
+				if lhs > rhs:
+					print("found outlier")
+					reject.append(timeCenter[index + 1])
+					value.append(deriv[index])
+			elif (index + (win_length - 1) / 2.) >= (deriv.size - 1):
+				diff = int(np.abs((index - ((win_length - 1) / 2.0))))
+				win[0:(win_length - 1) - diff] = deriv[(index - int(sides)) -1 :]
+				local_median = np.median(win)
+				mean_abs_dev = np.median(np.abs(win - local_median))
+				sigma = kappa * mean_abs_dev
+				lhs = np.abs(deriv[index] - local_median)
+				rhs = eta * sigma
+				# print("lhs: ", lhs, " rhs: ", rhs)
+				# print("mad: ", global_mean, " lm: ", local_median)
+				if lhs > rhs:
+					print("found outlier") 
+					reject.append(timeCenter[index + 1])
+					value.append(deriv[index])
+			else:
+				sides = int(sides)
+				win = deriv[(index - sides):(index + sides)]
+				local_median = np.median(win)
+				mean_abs_dev = np.median(np.abs(win - local_median))
+				sigma = kappa * mean_abs_dev
+				lhs = np.abs(deriv[index] - local_median)
+				rhs = eta * sigma
+				# print("lhs: ", lhs, " rhs: ", rhs)
+				# print("mad: ", global_mean, " lm: ", local_median)
+				if lhs > rhs:
+					print("found outlier")
+					reject.append(timeCenter[index + 1])
+					value.append(deriv[index])
+		except:
+			pass
+
+	# print(np.median(deriv))
+	plt.plot(timeCenter, decay, 'o-')
+	plt.plot(reject, value, 'or')
+	plt.plot(timeCenter[1:], deriv)
+	plt.grid()
+	plt.show()	
+
+	if len(value) >= np.floor((0.15 * deriv.size)):
+		print("rejected")
+	elif positive_deriv >= 2:
 		print("rejected")
 	else:
 		print("passing to cole-cole")
-		for iter in range(12):
-		    c, tau, M, error, vs = DCIP.getColeCole(decay,
-		                                            c,
-		                                            tau,
-		                                            r,
-		                                            timeCenter,
-		                                            w_)
-		    delta_error = abs(stored_error - error) / ((stored_error + error) / 2.)
-		    # print("iter: %i | c: %f | tau: %e | M: %f | error: %f | delta: %f" %
-		    #       (iter, c, tau, M, error, delta_error))
-		    stored_error = error
-		    # r = r / 2.
-		    if delta_error > 0.002 or iter < min_iter:
-		        r = r / 2.
-		    elif delta_error < 0.002:
-		        print("convergence accomplished! DONE")
-		        break
+	# 	# for iter in range(12):
+		#     c, tau, M, error, vs = DCIP.getColeCole(decay,
+		#                                             c,
+		#                                             tau,
+		#                                             r,
+		#                                             timeCenter,
+		#                                             w_)
+		#     delta_error = abs(stored_error - error) / ((stored_error + error) / 2.)
+		#     # print("iter: %i | c: %f | tau: %e | M: %f | error: %f | delta: %f" %
+		#     #       (iter, c, tau, M, error, delta_error))
+		#     stored_error = error
+		#     # r = r / 2.
+		#     if delta_error > 0.002 or iter < min_iter:
+		#         r = r / 2.
+		#     elif delta_error < 0.002:
+		#         print("convergence accomplished! DONE")
+		#         break
 
-		print(c, tau, M, error)
+		# print(c, tau, M, error)
 		# percent_diff = (
 		#     np.sum((np.abs((decay - vs)) /
 		#            ((vs + decay) / 2.)) * w_)) / num_windows

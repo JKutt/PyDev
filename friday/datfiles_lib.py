@@ -4,6 +4,8 @@ import datetime
 from os.path import isdir, getsize
 from glob import glob
 from sys import exit
+import matplotlib.pylab as plt
+import math
 
 ## Written by H. LARNIER, Oct 2018 - DIAS GEOPHYSICAL LTD.
 
@@ -49,6 +51,34 @@ class Record:
         self.northing = northing
         self.easting = easting
         self.altitude = altitude
+
+
+def get_julian_datetime(date):
+    """
+    Convert a datetime object into julian float.
+    Args:
+        date: datetime-object of date in question
+
+    Returns: float - Julian calculated datetime.
+    Raises:
+        TypeError : Incorrect parameter type
+        ValueError: Date out of range of equation
+    """
+
+    # Ensure correct format
+    if not isinstance(date, datetime.datetime):
+        raise TypeError('Invalid type for parameter "date" - expecting datetime')
+    elif date.year < 1801 or date.year > 2099:
+        raise ValueError('Datetime must be between year 1801 and 2099')
+
+    # Perform the calculation
+    julian_datetime = 367 * date.year - int((7 * (date.year + int((date.month + 9) / 12.0))) / 4.0) + int(
+        (275 * date.month) / 9.0) + date.day + 1721013.5 + (
+                          date.hour + date.minute / 60.0 + date.second / math.pow(60,
+                                                                                  2)) / 24.0 - 0.5 * math.copysign(
+        1, 100 * date.year + date.month - 190002.5) + 0.5
+
+    return julian_datetime
 
 
 def gps_from_minutes_to_decimal(gps_value):
@@ -129,7 +159,7 @@ def get_dat_info(lines):
     # lines: list of lines from DAT file
     # Output:
     # dat_info: list of information (Unit ID, MEM number, Relay state, if current of potential)
-    dat_info = ['', 0, '', '']
+    dat_info = ['', 0, '', '', 0., 0.]
     for line in lines:
         if not line[0] == '#':
             break
@@ -148,6 +178,12 @@ def get_dat_info(lines):
                 dat_info[3] = 'C'
             if line[1:8] == 'Voltage':
                 dat_info[3] = 'V'
+            if line[1:17] == 'Override Easting':
+                tmp = line.split(':')
+                dat_info[5] = float(tmp[1][:-1])
+            if line[1:18] == 'Override Northing':
+                tmp = line.split(':')
+                dat_info[4] = float(tmp[1][:-1])
     return dat_info
 
 
@@ -260,12 +296,10 @@ def get_time(lines):
                 try:
                     hour_tmp = int(tmp[0:2])
                 except ValueError:
-                    print(tmp)
                     exit()
                 try:
                     minute_tmp = int(tmp[2:4])
                 except ValueError:
-                    print(tmp)
                     exit()
                 try:
                     sec_tmp = int(tmp[4:6])
@@ -384,24 +418,184 @@ def is_node_active(inj, rec):
     return is_active
 
 
+def get_date_from_gps_value(line):
+    tmp = line.split(',')
+    tmp2 = tmp[9]
+    tmp = tmp[1]
+
+    try:
+        year = int("20" + tmp2[4:])
+        month = int(tmp2[2:4])
+        day = int(tmp2[0:2])
+    except ValueError:
+        exit()
+    try:
+        hour_tmp = int(tmp[0:2])
+    except ValueError:
+        print(tmp)
+        exit()
+    try:
+        minute_tmp = int(tmp[2:4])
+    except ValueError:
+        print(tmp)
+        exit()
+    try:
+        sec_tmp = int(tmp[4:6])
+    except ValueError:
+        exit()
+    try:
+        time = datetime.datetime(year, month, day, hour_tmp, minute_tmp, sec_tmp)
+    except TypeError:
+        pass
+    except ValueError:
+        pass
+
+    return time
+
+
 def read_data(lines):
     # Read data from DAT file
     # Input:
     # lines: list of lines from the DAT file
     # Output:
     # data: list of data
-    data = []
+
+    data = []           # list of data values
+    time_pps = []           # list of time values assigned to data list
     factor = 1
+
+    count = 0
+    adc_offset = 0.
+    have_timing = 0
+    gps_count = 0
+    threshold = 20000000.
+    assigned_pps = 0
+    time_shift = 0.0
+    start_time = -1
+    last_gps_time = 0.
+    have_s = 0.
+    l_pps = 0.
+    sample_rate = 20.
+    gps_count = 0.
+    f_pps = 0
+    hold_data = 0
+    val = 0
+    lsval = 0
     for line in lines:
+        if line[1:4] == "Time":
+            tmp = line.split(':')
+            time_shift = (int(tmp[1][:-1]) / 1000.0) / (60. * 60. *24.)
         if line[1:11] == 'Conversion':
             tmp = line.split(':')
             factor = int(tmp[1][:-1])
-        if line[0] == '+' or line[0] == '-':
-            data.append(int(line[:-1]))
+        if line[1:4] == 'ADC':
+            tmp = line.split(':')
+            try:
+                adc_offset = float(tmp[1][:-1])
+            except:
+                adc_offset = 0.
+        if line[1:7] == 'Sample':
+            tmp = line.split(':')
+            sample_rate = int(tmp[1][:-1])              # Frequency sample rate
+            t_inc = (1. / sample_rate) / (60 * 60 * 24)  # Time increment between two samples (in years)
+        if line[:-1] == 'PPS':
+            assigned_pps = 1
+            #print("Found PPS")
+        if line[0] == 'S':
+            #print("Found second")
+            tmp = line.split('S')
+            val = float(tmp[1][:-1])
+            if val < 360000000:
+                hold_data = 0
+                have_timing += 1
+                if have_timing == 0 or gps_count == 0:
+                    f_pps = count
+                    l_pps = count
+                    lsval = count
+                else:
+                    obs_samplerate = count - l_pps
+                    have_s = 1
+                    #print("Sample rates", obs_samplerate, sample_rate)
+                    if not obs_samplerate == sample_rate:
+                        spacing = val - lsval
+                        if spacing > 0:
+                            samples = count - l_pps                 # Number of samples
+                            exp_samples = spacing * sample_rate     # Number of samples from file
+                            missing = int(exp_samples - samples)         # Difference is missing samples
+                            if missing > 0:
+                                tmp = data[-1]
+                                for i in range(missing):
+                                    data.append(tmp)
+                                    count += 1
+                            else:
+                                count += missing
+
+                l_pps = count
+                lsval = val
+            else:
+                hold_data = 1
+        if line[0] == '$':
+            tmp = line.split(',')
+            if tmp[0] == "$GNRMC" or tmp[0] == "$GPRMC" or tmp[0] == "$PSRFC" \
+                    or tmp[0] == "$PSRMC" or tmp[0] == "$PPRMC" :
+                #print('Reading GPS String')
+                gps_valid = 0
+                if have_timing > 2 and assigned_pps == 1:
+                    assigned_pps = 0
+                    if len(tmp) >= 10:  # Check if line is complete
+                        try:
+                            time_tmp = get_date_from_gps_value(line)
+                            time_tmp = get_julian_datetime(time_tmp)
+                            #time_tmp += ((time_shift / 1000.) / 60. * 1 / 60. * 1 / 24.)
+                            gps_count += 1
+                        except ValueError:
+                            pass
+                        gps_valid = 1
+                    if gps_valid == 1:
+                        if start_time == -1:
+                            start_time = time_tmp - (t_inc * f_pps)
+                            time_pps.append(start_time)
+                        else:
+                            time_pos = l_pps + 1
+                            if time_pos < len(data) and have_s == 1:
+                                if time_tmp == last_gps_time:
+                                    time_tmp = time_tmp + 1. / 86400.
+                                if len(time_pps) < l_pps:
+                                    while len(time_pps) < l_pps:
+                                        time_pps.append(0.)
+                                    time_pps[l_pps - 1] = time_tmp
+                                else:
+                                    time_pps[l_pps - 1] = time_tmp
+                                    have_s = 0
+                                    last_gps_time = time_tmp
+        if line[0] == '+' or line[0] == '-' or line[0] == ' ':
+            if have_timing > 0:
+                if hold_data == 0:
+                    if len(line) <= 12:
+                        try:
+                            if int(line[:-1]) < (threshold + adc_offset) * factor:
+                                count += 1
+                                data.append(int(line[:-1]))
+                        except:
+                            pass
+
+    s_time = start_time
+    if len(data) > 600:
+        if len(time_pps):
+            for i in range(len(time_pps)):
+                if not time_pps[i] == 0:
+                    s_time = time_pps[i]
+                else:
+                    s_time = s_time + t_inc
+                    time_pps[i] = s_time
+    if not time_shift == 0:
+        for i in range(len(time_pps)):
+            time_pps[i] += time_shift
 
     for i in range(len(data)):
-        data[i] /= factor
-    return data
+        data[i] = (data[i] / factor) - adc_offset
+
+    return time_pps, data[:len(time_pps)]
 
 
 def write_node_entry(rec, file):
@@ -500,7 +694,6 @@ def read_library_file(library_file):
                 tmp = line.split('altitude:')
                 altitude = tmp[1][:-2]
             count += 1
-        tmp = None
         if count == 9:
             try:
                 recs[node_index].append(Record(node_id=node_id,

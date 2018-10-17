@@ -9,15 +9,15 @@ from glob import glob
 # # INPUTS
 # LINE/GRID ROOT FOLDER
 dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\orano\\data\\CL0E\\'
-dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\india\\3D\\test\\'
+#dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\india\\3D\\test\\'
 #dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\FieldSchool2018\\FieldSchool\\'
 
 # RECORDINGS FILE
-recordingFile = 'LOGS\\Recordings.txt'
+recordingFile = 'LOGS\\Recordings_0.txt'
 
 # GPS COORDINATES FILES
 gpsFile = 'snapCoordinates_CL0.IoBAT.csv'
-gpsFile = 'gpsCoordinates.csv'
+# gpsFile = 'gpsCoordinates.csv'
 
 # Reading GPS location file
 if len(glob(dataRoot + gpsFile)):
@@ -105,10 +105,13 @@ for injection in logInjections:
                 injection.list_files.append(record.name)
 
 # Plotting injection map
+shortLegend = mlines.Line2D([], [], color='magenta', marker='v', linestyle='None', label='Short')
+nodeLegend = mlines.Line2D([], [], color='black', marker='o', linestyle='None', label='Node')
+currentRecorderLegend = mlines.Line2D([], [], color='red', marker='o', linestyle='None', label='Current Recorder')
+"""
 figInj, ax0 = plt.subplots(1, 1)
 figInj.set_size_inches(8.27, 11.69)
 figInj.suptitle('Injection map; Mem numbers from: ' + str(logInjections[0].num) + ' to ' + str(logInjections[-1].num))
-currentRecorderLegend = mlines.Line2D([], [], color='red', marker='o', linestyle='None', label='Current Recorder')
 for injection in logInjections:
     for i in range(len(injection.list_nodes)):
         if injection.list_type[i] == 'C':
@@ -126,10 +129,8 @@ ax0.legend(handles=[currentRecorderLegend], loc='upper center',
 figInj.tight_layout()
 figInj.subplots_adjust(top=0.95)
 plt.show()
-
+"""
 # Plotting node map for each injection
-shortLegend = mlines.Line2D([], [], color='magenta', marker='v', linestyle='None', label='Short')
-nodeLegend = mlines.Line2D([], [], color='black', marker='o', linestyle='None', label='Node')
 for injection in logInjections:
     start_date = str(injection.start_date.year) + '-' + str(injection.start_date.month) + '-' +\
                  str(injection.start_date.day) + '/' + str(injection.start_date.hour) + ':' +\
@@ -168,10 +169,10 @@ for injection in logInjections:
             fIn = open(injection.list_files[i], 'r')
             linesFIn = fIn.readlines()
             fIn.close()
-            data = read_data(linesFIn)
+            time, data = read_data(linesFIn)
             tmp = injection.list_files[i]
             tmp = tmp.split(dataRoot)
-            ax1.plot(data, label=tmp[1])
+            ax1.plot(time, data, label=tmp[1])
     ax1.grid()
     ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
                fancybox=True, shadow=True, ncol=1)

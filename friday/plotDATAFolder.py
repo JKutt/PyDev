@@ -5,15 +5,17 @@ import csv
 import matplotlib.pylab as plt
 import matplotlib.lines as mlines
 from glob import glob
+import numpy as np
 
 # # INPUTS
 # LINE/GRID ROOT FOLDER
 dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\orano\\data\\CL0E\\'
+dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\mmg_mcArthur\\L12+13+16\\L16\\'
 #dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\india\\3D\\test\\'
 #dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\FieldSchool2018\\FieldSchool\\'
 
 # RECORDINGS FILE
-recordingFile = 'LOGS\\Recordings_0.txt'
+recordingFile = 'log\\Recordings_16.txt'
 
 # GPS COORDINATES FILES
 gpsFile = 'snapCoordinates_CL0.IoBAT.csv'
@@ -103,12 +105,11 @@ for injection in logInjections:
                 else:
                     injection.list_type.append(record.relay_state)
                 injection.list_files.append(record.name)
-
 # Plotting injection map
 shortLegend = mlines.Line2D([], [], color='magenta', marker='v', linestyle='None', label='Short')
 nodeLegend = mlines.Line2D([], [], color='black', marker='o', linestyle='None', label='Node')
 currentRecorderLegend = mlines.Line2D([], [], color='red', marker='o', linestyle='None', label='Current Recorder')
-"""
+
 figInj, ax0 = plt.subplots(1, 1)
 figInj.set_size_inches(8.27, 11.69)
 figInj.suptitle('Injection map; Mem numbers from: ' + str(logInjections[0].num) + ' to ' + str(logInjections[-1].num))
@@ -129,7 +130,7 @@ ax0.legend(handles=[currentRecorderLegend], loc='upper center',
 figInj.tight_layout()
 figInj.subplots_adjust(top=0.95)
 plt.show()
-"""
+
 # Plotting node map for each injection
 for injection in logInjections:
     start_date = str(injection.start_date.year) + '-' + str(injection.start_date.month) + '-' +\
@@ -172,7 +173,7 @@ for injection in logInjections:
             time, data = read_data(linesFIn)
             tmp = injection.list_files[i]
             tmp = tmp.split(dataRoot)
-            ax1.plot(time, data, label=tmp[1])
+            ax1.plot(time, data - np.mean(data), label=tmp[1])
     ax1.grid()
     ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
                fancybox=True, shadow=True, ncol=1)

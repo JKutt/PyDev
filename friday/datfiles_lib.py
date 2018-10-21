@@ -289,8 +289,14 @@ def get_time(lines):
                 time = []
                 break
 
+
         if line[0:7] == '$GNRMC,' or line[0:7] == '$GPRMC,':
+            time_tmp = get_date_from_gps_value(line)
+            if not time_tmp == datetime.datetime(2000, 1, 1, 1, 1, 1):
+                time.append(time_tmp)
+            """
             tmp = line.split(',')
+            tmp2 = tmp[]
             tmp = tmp[1]
             if len(tmp) == 9 or len(tmp) == 10:
                 try:
@@ -311,6 +317,7 @@ def get_time(lines):
                     pass
                 except ValueError:
                     pass
+                """
     return time
 
 
@@ -378,7 +385,7 @@ def read_log_file(log_file):
                                             list_nodes=[],
                                             list_gps=[],
                                             list_type=[]))
- 
+
     return injections
 
 
@@ -388,17 +395,18 @@ def list_nodes(data_folder):
     # data_folder: String containing the DATA folder location
     # Output:
     # node_list: list of nodes (have to be only two characters long)
-    node_list = glob(data_folder + '??')
+    node_list = glob(data_folder + '*')
+
     not_nodes = []
     for line in node_list:
         if not isdir(line):
             not_nodes.append(line)
-
     for i in range(len(not_nodes)):
-        node_list.remove(not_nodes)
+        node_list.remove(not_nodes[i])
 
     for i in range(len(node_list)):
-        node_list[i] = node_list[i][-2:]
+        tmp = node_list[i].split('\\')
+        node_list[i] = tmp[-1]
 
     return node_list
 
@@ -422,35 +430,32 @@ def get_date_from_gps_value(line):
     tmp = line.split(',')
     tmp2 = tmp[9]
     tmp = tmp[1]
-
+    time = datetime.datetime(2000, 1, 1, 1, 1, 1)
     try:
         year = int("20" + tmp2[4:])
         month = int(tmp2[2:4])
         day = int(tmp2[0:2])
     except ValueError:
-        exit()
+        return time
     try:
         hour_tmp = int(tmp[0:2])
     except ValueError:
-        print(tmp)
-        exit()
+        return time
     try:
         minute_tmp = int(tmp[2:4])
     except ValueError:
-        print(tmp)
-        exit()
+        return time
     try:
         sec_tmp = int(tmp[4:6])
     except ValueError:
-        exit()
+        return time
     try:
         time = datetime.datetime(year, month, day, hour_tmp, minute_tmp, sec_tmp)
+        return time
     except TypeError:
-        pass
+        return time
     except ValueError:
-        pass
-
-    return time
+        return time
 
 
 def read_data(lines):
@@ -648,7 +653,7 @@ def get_node_list_from_library(lines):
     node_list = []
     for line in lines:
         if line[0] == '<':  # new node
-            node_list.append(line[1:3])
+            node_list.append(line[1:-2])
 
     return node_list
 
@@ -662,7 +667,7 @@ def read_library_file(library_file):
     count = 0
     for line in lines:
         if line[0] == '<':  # new node
-            node_id = line[1:3]
+            node_id = line[1:-2]
             tmp = [i for i in range(len(node_list)) if node_id == node_list[i]]
             node_index = tmp[0]
         else:  # same node, new file, \t,
@@ -742,6 +747,7 @@ def add_new_nodes(records, node_list):
 def is_file_in_library(records, dat_file, node_index):
 
     test = 1
+
     for i in range(len(records[node_index])):
         if dat_file == records[node_index][i].name:
             test = 0

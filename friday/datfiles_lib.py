@@ -428,33 +428,36 @@ def is_node_active(inj, rec):
 
 def get_date_from_gps_value(line):
     tmp = line.split(',')
-    tmp2 = tmp[9]
-    tmp = tmp[1]
     time = datetime.datetime(2000, 1, 1, 1, 1, 1)
-    try:
-        year = int("20" + tmp2[4:])
-        month = int(tmp2[2:4])
-        day = int(tmp2[0:2])
-    except ValueError:
-        return time
-    try:
-        hour_tmp = int(tmp[0:2])
-    except ValueError:
-        return time
-    try:
-        minute_tmp = int(tmp[2:4])
-    except ValueError:
-        return time
-    try:
-        sec_tmp = int(tmp[4:6])
-    except ValueError:
-        return time
-    try:
-        time = datetime.datetime(year, month, day, hour_tmp, minute_tmp, sec_tmp)
-        return time
-    except TypeError:
-        return time
-    except ValueError:
+    if len(tmp) >= 10:
+        tmp2 = tmp[9]
+        tmp = tmp[1]
+        try:
+            year = int("20" + tmp2[4:])
+            month = int(tmp2[2:4])
+            day = int(tmp2[0:2])
+        except ValueError:
+            return time
+        try:
+            hour_tmp = int(tmp[0:2])
+        except ValueError:
+            return time
+        try:
+            minute_tmp = int(tmp[2:4])
+        except ValueError:
+            return time
+        try:
+            sec_tmp = int(tmp[4:6])
+        except ValueError:
+            return time
+        try:
+            time = datetime.datetime(year, month, day, hour_tmp, minute_tmp, sec_tmp)
+            return time
+        except TypeError:
+            return time
+        except ValueError:
+            return time
+    else:
         return time
 
 
@@ -583,16 +586,20 @@ def read_data(lines):
                                 data.append(int(line[:-1]))
                         except:
                             pass
-
     s_time = start_time
-    if len(data) > 600:
+    if len(data) > 0:
         if len(time_pps):
             for i in range(len(time_pps)):
+                """
                 if not time_pps[i] == 0:
                     s_time = time_pps[i]
                 else:
                     s_time = s_time + t_inc
                     time_pps[i] = s_time
+                """
+                s_time = s_time + t_inc
+                time_pps[i] = s_time
+
     if not time_shift == 0:
         for i in range(len(time_pps)):
             time_pps[i] += time_shift

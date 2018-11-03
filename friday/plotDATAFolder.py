@@ -10,12 +10,12 @@ import numpy as np
 # # INPUTS
 # LINE/GRID ROOT FOLDER
 dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\orano\\data\\CL0E\\'
-dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\mmg_mcArthur\\L12+13+16\\L16\\'
+dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\mmg_mcArthur\\L36\\L36\\'
 #dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\india\\3D\\test\\'
 #dataRoot = 'C:\\Users\\HugoLarnier\\Documents\\projects\\FieldSchool2018\\FieldSchool\\'
 
 # RECORDINGS FILE
-recordingFile = 'log\\Recordings_16.txt'
+recordingFile = 'LogFiles\\Recordings_36.txt'
 
 # GPS COORDINATES FILES
 gpsFile = 'snapCoordinates_CL0.IoBAT.csv'

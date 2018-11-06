@@ -362,6 +362,19 @@ def vp_harmonics_check(project, nodes):
     return nodes
 
 
+
+
+def quarantine_list(project, index):
+    
+    quarantine_list = open(project.path + 'to_quarantine.log', 'a')
+    for node in project.node_data[index]:
+        if node.is_quarantine:
+            quarantine_list.write(node.file_name + '\n')
+    quarantine_list.close()
+
+    return
+
+
 def quarantine(project, index):
 
     log_file = project.open_friday_log()

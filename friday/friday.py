@@ -12,7 +12,7 @@ if __name__ == '__main__':
     # Input
     project_path = sys.argv[1]
     print("Analyzing project: " + project_path)
-    log_file = 'Recordings_36.txt'
+    log_file = 'Recordings_1850.txt'
     print("Loaded recording file: " + log_file)
     project = Project(path=project_path,
                       data_path=project_path + 'DATA\\',
@@ -20,7 +20,7 @@ if __name__ == '__main__':
                       list_nodes=[],
                       injections=[],
                       records=[],
-                      recording_file=project_path + 'LogFiles\\' + log_file)
+                      recording_file=project_path + 'Log\\' + log_file)
 
     print("Seems like what you told me exists. Starting analysis.")
     # project_path + '/LogFiles/' + log_file
@@ -59,6 +59,11 @@ if __name__ == '__main__':
             print('Checking outliers on Vp and harmonics')
             project.node_data[ind] = stages.vp_harmonics_check(project, project.node_data[ind])
 
+            print('Updating quarantine list')
+            stages.quarantine_list(project, ind)
+
+    # Quarantining at the end to avoid missing data when autorecord
+    for ind in range(len(project.injections)):
             print('Quarantining data')
             stages.quarantine(project, ind)
             # Potential room for DIASPro call to process the injection

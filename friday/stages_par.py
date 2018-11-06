@@ -177,7 +177,8 @@ def harmonic_vp_analysis_injection(project, injection):
             index_pool.append(i)
     pool.close()
     pool.join()
-    """ SERIAL FOR TESTS
+    """
+    # SERIAL FOR TESTS
     for i in range(len(nodes)):
         if injection.list_type[i] == 'A':       # Only getting nodes power
         # Using a pool of worker to analyze each file
@@ -312,7 +313,7 @@ def statistical_analysis(project, nodes):
 
     for i in range(len(nodes)):
         if np.abs(nodes[i].score - np.mean(xscore)) > np.std(xscore) and nodes[i].score < np.mean(xscore):
-            message = '\t' + nodes[i].file_name
+            message = '\t' + nodes[i].file_name + '; coherence score: ' + str(nodes[i].score) +'\n'
             project.write_messages_to_friday(log_file, message)
             print('\t', nodes[i].file_name)
             nodes[i].is_quarantine = 1

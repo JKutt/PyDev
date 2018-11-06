@@ -12,6 +12,7 @@ from scipy.signal import detrend, correlate, convolve
 import signalAnalysis_lib_parallel as signalAnalysis
 from sys import platform
 import multiprocessing
+import julian
 
 ## Written by H. LARNIER, Oct 2018 - DIAS GEOPHYSICAL LTD.
 
@@ -516,7 +517,7 @@ def read_data(lines):
         if line[1:7] == 'Sample':
             tmp = line.split(':')
             sample_rate = int(tmp[1][:-1])              # Frequency sample rate
-            t_inc = (1. / sample_rate) / (60 * 60 * 24)  # Time increment between two samples (in years)
+            t_inc = (1. / sample_rate) / (60. * 60. * 24.)  # Time increment between two samples (in years)
         if line[:-1] == 'PPS':
             assigned_pps = 1
             #print("Found PPS")
@@ -549,8 +550,8 @@ def read_data(lines):
                             else:
                                 count += missing
 
-                l_pps = count
-                lsval = val
+                    l_pps = count
+                    lsval = val
             else:
                 hold_data = 1
         if line[0] == '$':
@@ -564,8 +565,9 @@ def read_data(lines):
                     if len(tmp) >= 10:  # Check if line is complete
                         try:
                             time_tmp = get_date_from_gps_value(line)
-                            time_tmp = get_julian_datetime(time_tmp)
-                            #time_tmp += ((time_shift / 1000.) / 60. * 1 / 60. * 1 / 24.)
+                            time_tmp = julian.to_jd(time_tmp)#get_julian_datetime(time_tmp)
+                            #time_tmp = get_julian_datetime(time_tmp)
+                            time_tmp += ((time_shift / 1000.) / 60. * 1 / 60. * 1 / 24.)
                             gps_count += 1
                         except ValueError:
                             pass
@@ -585,8 +587,8 @@ def read_data(lines):
                                     time_pps[l_pps - 1] = time_tmp
                                 else:
                                     time_pps[l_pps - 1] = time_tmp
-                                    have_s = 0
-                                    last_gps_time = time_tmp
+                                have_s = 0
+                                last_gps_time = time_tmp
         if line[0] == '+' or line[0] == '-' or line[0] == ' ':
             if have_timing > 0:
                 if hold_data == 0:
@@ -597,19 +599,25 @@ def read_data(lines):
                                 data.append(int(line[:-1]))
                         except:
                             pass
+    
     s_time = start_time
+    tmp = start_time
+    for i in range(len(time_pps)):
+        if not time_pps[i] == 0:
+            if tmp > time_pps[i]:
+                time_pps[i] = 0.
+
     if len(data) > 0:
         if len(time_pps):
             for i in range(len(time_pps)):
-                """
                 if not time_pps[i] == 0:
                     s_time = time_pps[i]
                 else:
                     s_time = s_time + t_inc
                     time_pps[i] = s_time
-                """
-                s_time = s_time + t_inc
-                time_pps[i] = s_time
+
+                #s_time = s_time + t_inc
+                #time_pps[i] = s_time
 
     if not time_shift == 0:
         for i in range(len(time_pps)):
@@ -650,10 +658,10 @@ def get_common_ts(time_1, time_2, data_1, data_2):
         time_min = np.max([time_1[0], time_2[0]])
         time_max = np.min([time_1[-1], time_2[-1]])
 
-        data_1 = [data_1[i] for i in range(len(time_1)) if time_1[i] > time_min and time_1[i] < time_max]
-        time_1 = [time_1[i] for i in range(len(time_1)) if time_1[i] > time_min and time_1[i] < time_max]
-        data_2 = [data_2[i] for i in range(len(time_2)) if time_2[i] > time_min and time_2[i] < time_max]
-        time_2 = [time_2[i] for i in range(len(time_2)) if time_2[i] > time_min and time_2[i] < time_max]
+        data_1 = [data_1[i] for i in range(len(time_1)) if time_1[i] >= time_min and time_1[i] <= time_max]
+        time_1 = [time_1[i] for i in range(len(time_1)) if time_1[i] >= time_min and time_1[i] <= time_max]
+        data_2 = [data_2[i] for i in range(len(time_2)) if time_2[i] >= time_min and time_2[i] <= time_max]
+        time_2 = [time_2[i] for i in range(len(time_2)) if time_2[i] >= time_min and time_2[i] <= time_max]
 
     return time_1, time_2, data_1, data_2, test
 

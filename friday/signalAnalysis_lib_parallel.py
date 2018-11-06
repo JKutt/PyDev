@@ -248,8 +248,10 @@ def get_harmonics_and_vp(node, on_time, periods, injection):
     fIn = open(node.file_name, 'r')
     linesFIn = fIn.readlines()
     fIn.close()
+
+    time, data = datlib.read_data(linesFIn)
     try:
-        time, data = datlib.read_data(linesFIn)
+        #time, data = datlib.read_data(linesFIn)
         time, data = datlib.trim_injection_time(time, data, injection.start_date, injection.end_date)
     except:
         messages.append("[" + multiprocessing.current_process().name + "] \t -> Cannot read file." + '\n')
@@ -292,6 +294,7 @@ def get_coherency(node, nodes, periods, injection):
         fIn.close()
         t, data = datlib.read_data(linesFIn)
         t, data = datlib.trim_injection_time(t, data, injection.start_date, injection.end_date)
+
         if len(t) < 600:
             test = 0
     except:
@@ -308,6 +311,7 @@ def get_coherency(node, nodes, periods, injection):
                     linesFIn = fIn.readlines()
                     fIn.close()
                     time_2, data_2 = datlib.read_data(linesFIn)
+
                 except:
                     messages.append("[" + multiprocessing.current_process().name + '] \t -> Cannot read file.' + '\n')
                     test = 0
@@ -343,13 +347,15 @@ def check_vp_outliers(node, nodes):
     index = 0
     while count < 4 and index < len(nodesSelected):
         if get_distance_two_nodes(node, nodesSelected[index]) < 500 and not nodesSelected[index].is_quarantine:
-            harmonics_ratio = np.median([np.abs(np.log10(node.harmonics[j]) - np.log10(nodesSelected[index].harmonics[j]) /np.log10(node.harmonics[j])) * 100 for j in range(10)])
+            harmonics_ratio = np.median([np.abs((np.log10(node.harmonics[j]) - np.log10(nodesSelected[index].harmonics[j])) / np.log10(node.harmonics[j])) * 100 for j in range(10)])
             Vp_ratio = np.abs((np.log10(np.abs(node.Vp)) - np.log10(np.abs(nodesSelected[index].Vp))) / np.log10(np.abs(node.Vp))) * 100
-            messages.append("[" + multiprocessing.current_process().name + "] log10(Vp) ratio:" + str(Vp_ratio) + "; Harmonics ratio: " + str(harmonics_ratio) + "\n")
+            messages.append("[" + multiprocessing.current_process().name + "] Comparison file: " + nodesSelected[index].file_name[-13:] + "\n")
+            messages.append("[" + multiprocessing.current_process().name + "] Vp values: " + str(node.Vp) + ";" + str(nodesSelected[index].Vp) + "\n")
+            messages.append("[" + multiprocessing.current_process().name + "] log10(Vp) ratio:" + str(Vp_ratio) + "; Harmonics ratio: " + str(harmonics_ratio) + "; Comparison file: " + nodesSelected[index].file_name[-13:]+ "\n")
             #print(np.log10(np.abs(node.Vp)), np.log10(np.abs(nodesSelected[index].Vp)), Vp_ratio, nodesSelected[index].file_name)
             #print(np.log10(node.harmonics[6]), np.log10(nodesSelected[index].harmonics[6]), harmonics_ratio, nodesSelected[index].file_name)
             if Vp_ratio < 50 and harmonics_ratio < 50:
-                messages.append("[" + multiprocessing.current_process().name + "] Node" + node.id + " is not considered outlier.\n")
+                messages.append("[" + multiprocessing.current_process().name + "] Node " + node.id + " is not considered outlier.\n")
                 node.is_quarantine = 0
                 #print(Vp_ratio, 'maybe not outlier')
             count += 1

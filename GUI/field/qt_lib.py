@@ -10,7 +10,8 @@ from matplotlib.backends.backend_qt5agg import (
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.lines as mlines
 import numpy as np
-
+import utm
+import csv
 shortLegend = mlines.Line2D([], [], color='magenta', marker='v', linestyle='None', label='Short')
 nodeLegend = mlines.Line2D([], [], color='black', marker='o', linestyle='None', label='Node')
 currentRecorderLegend = mlines.Line2D([], [], color='red', marker='o', linestyle='None', label='Current Recorder')
@@ -53,6 +54,163 @@ class Project:
     def initialize_node_data(self):
         self.node_data = [[] for i in range(len(self.injections))]
 
+class gps_plot(QtWidgets.QMainWindow):
+
+    def __init__(self, parent=None):
+        super(gps_plot, self).__init__(parent)
+        self._main = QtWidgets.QWidget()
+        self.title = 'GPS plot - DIAS GEOPHYSICAL'
+        self.left = 10
+        self.top = 10
+        self.width = 2000
+        self.height = 1600
+        self.project = parent.project
+        self.index = 0
+        self.initUI()
+
+
+    def plot_single_track(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Python Files (*.py)", options=options)
+        if file:
+            print('File read:', file)
+            fIn = open(file, 'r')
+            fLines = fIn.readlines()
+            fIn.close()
+            infos = iolib.get_gps_constellation(fLines)
+
+            easting = infos[1]
+            northing = infos[0]
+            gpsAverage = [0., 0.]
+            gpsAverage[0] = np.median([easting[i] for i in range(len(easting)) if not np.isnan(easting[i])])
+            gpsAverage[1] = np.median([northing[i] for i in range(len(northing)) if not np.isnan(northing[i])])
+            tmp = utm.from_latlon(gpsAverage[1], gpsAverage[0])
+            gpsAverage[0] = tmp[0]
+            gpsAverage[1] = tmp[1]
+            for i in range(len(easting)):
+                try:
+                    tmp = utm.from_latlon(northing[i], easting[i])
+                    northing[i] = tmp[1]
+                    easting[i] = tmp[0]
+                    if np.abs(northing[i] - gpsAverage[1]) > 50 or np.abs(easting[i] - gpsAverage[0]) > 50:
+                        easting[i] = np.nan
+                        northing[i] = np.nan
+                except utm.error.OutOfRangeError:
+                    easting[i] = np.nan
+                    northing[i] = np.nan
+            self.figure.clf()
+            self.ax0 = self.figure.add_subplot(111)
+            self.ax0.plot(easting, northing, 'ro')
+            self.ax0.plot(gpsAverage[0], gpsAverage[1], '*b')
+            self.ax0.grid()
+            if len(glob(self.project.gps_file)):
+                f = open(self.project.gps_file, 'r')
+                theoreticalCoordinates = csv.reader(f)
+                gpsStations = [[], []]
+                numStation = []
+                for row in theoreticalCoordinates:
+                    try:
+                        numStation.append(str(int(row[0])) + ',' + str(int(row[1])))
+                    except:
+                        pass
+                    try:
+                        gpsStations[0].append(float(row[2]))
+                        gpsStations[1].append(float(row[3]))
+                    except ValueError:
+                        pass
+
+                f.close()
+                for loc in gpsStations:
+                    self.ax0.plot(gpsStations[0], gpsStations[1], 'r+')
+
+            self.canvas.draw()
+
+
+    def plot_node_track(self):
+
+        options = QtWidgets.QFileDialog.Options()
+        options = QtWidgets.QFileDialog.DontUseNativeDialog
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, 'Select a folder:', 'C:\\', QtWidgets.QFileDialog.ShowDirsOnly)
+        if directory:
+            print('Directory read:', directory)
+
+        dat_list = glob(directory + '/*.DAT')
+        self.figure.clf()
+        self.ax0 = self.figure.add_subplot(111)
+        for datFile in dat_list:
+            print("\tProcessing file: " + datFile)
+            fIn = open(datFile)
+            linesFIn = fIn.readlines()
+            fIn.close()
+            try:
+                gpsAverage = iolib.get_average_gps(linesFIn)
+                tmp = utm.from_latlon(gpsAverage[0], gpsAverage[1])
+                gpsAverage[0] = tmp[0]
+                gpsAverage[1] = tmp[1]
+                self.ax0.plot(gpsAverage[0], gpsAverage[1], '*b')
+            except:
+                pass
+        self.ax0.grid()
+
+        if len(glob(self.project.gps_file)):
+            f = open(self.project.gps_file, 'r')
+            theoreticalCoordinates = csv.reader(f)
+            gpsStations = [[], []]
+            numStation = []
+            for row in theoreticalCoordinates:
+                try:
+                    numStation.append(str(int(row[0])) + ',' + str(int(row[1])))
+                except:
+                    pass
+                try:
+                    gpsStations[0].append(float(row[2]))
+                    gpsStations[1].append(float(row[3]))
+                except ValueError:
+                    pass
+
+            f.close()
+            for loc in gpsStations:
+                self.ax0.plot(gpsStations[0], gpsStations[1], 'r+')
+
+        self.canvas.draw()
+
+    def initUI(self):
+        self.index = 0
+        self.setWindowTitle(self.title)
+        self.setWindowIcon(QtGui.QIcon('pythonlogo.png'))
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+        self.main_widget = QtWidgets.QWidget(self)
+        self.main_widget.setGeometry(250, 100, self.frameGeometry().width() - 300, self.frameGeometry().height() - 100 * 2)
+        self.layout = QtWidgets.QVBoxLayout(self.main_widget)
+        self.figure = plt.Figure()
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+        self.addToolBar(NavigationToolbar(self.canvas, self))
+
+        mainMenu = self.menuBar()
+        fileMenu = mainMenu.addMenu('File')
+        loadSingle = QtWidgets.QAction('Load single file', self)
+        loadSingle.setShortcut('Ctrl+O')
+        loadSingle.setStatusTip('Load single GPS file to see track')
+        loadSingle.triggered.connect(self.plot_single_track)
+
+        loadNode = QtWidgets.QAction('Load node folder', self)
+        loadNode.setShortcut('Ctrl+O')
+        loadNode.setStatusTip('Load node folder')
+        loadNode.triggered.connect(self.plot_node_track)
+
+        exitButton = QtWidgets.QAction(QtGui.QIcon('exit24.png'), 'Exit', self)
+        exitButton.setShortcut('Ctrl+Q')
+        exitButton.setStatusTip('Exit application')
+        exitButton.triggered.connect(self.close)
+
+        fileMenu.addAction(loadSingle)
+        fileMenu.addAction(loadNode)
+        fileMenu.addAction(exitButton)
+
+        self.show()
 
 class injection_plot(QtWidgets.QMainWindow):
 
@@ -92,11 +250,27 @@ class injection_plot(QtWidgets.QMainWindow):
             elif injection.list_type[i] == 'C':
                 self.ax0.plot(injection.list_gps[i][0], injection.list_gps[i][1], 'or')
             self.ax0.annotate(injection.list_nodes[i], (injection.list_gps[i][0], injection.list_gps[i][1]))
-        """
-        if len(glob(self.project.data_path + gpsFile)):
+
+        if len(glob(self.project.gps_file)):
+            f = open(self.project.gps_file, 'r')
+            theoreticalCoordinates = csv.reader(f)
+            gpsStations = [[], []]
+            numStation = []
+            for row in theoreticalCoordinates:
+                try:
+                    numStation.append(str(int(row[0])) + ',' + str(int(row[1])))
+                except:
+                    pass
+                try:
+                    gpsStations[0].append(float(row[2]))
+                    gpsStations[1].append(float(row[3]))
+                except ValueError:
+                    pass
+
+            f.close()
             for loc in gpsStations:
-                ax0.plot(loc[0], loc[1], 'r+')
-        """
+                self.ax0.plot(gpsStations[0], gpsStations[1], 'r+')
+
         self.ax0.set_xlabel('Easting (m)')
         self.ax0.set_ylabel('Northing (m)')
         self.ax0.grid()
@@ -157,7 +331,7 @@ class injection_plot(QtWidgets.QMainWindow):
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.addToolBar(NavigationToolbar(self.canvas, self))
-        
+
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('File')
         exitButton = QtWidgets.QAction(QtGui.QIcon('exit24.png'), 'Exit', self)
@@ -183,6 +357,7 @@ class App(QtWidgets.QMainWindow):
         self.project = Project()
         self.project.data_path = "C:/Users/HugoLarnier/Desktop/Projects/MMG_McArthur_2018/L36/DATA/"
         self.project.recording_file = "C:/Users/HugoLarnier/Desktop/Projects/MMG_McArthur_2018/L36/LogFiles/Recordings_36.txt"
+        self.project.gps_file = "C:/Users/HugoLarnier/Desktop/Projects/MMG_McArthur_2018/L36/LogFiles/Recordings_36.txt"
         self.project.list_nodes = []
         self.project.injections = []
 
@@ -205,6 +380,14 @@ class App(QtWidgets.QMainWindow):
         if file:
             print('File read:', file)
         self.project.recording_file = file
+
+    def openGPSFile(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;CSV Files (*.csv)", options=options)
+        if file:
+            print('File read:', file)
+        self.project.gps_file = file
 
     def readFiles(self):
         print(self.project.data_path, self.project.recording_file)
@@ -287,9 +470,6 @@ class App(QtWidgets.QMainWindow):
         else:
             print("You forgot to load stuff. Please do.")
 
-    def printFiles(self):
-        print(vars(self.project))
-
     def plotInjections(self):
         #figInj, ax0 = plt.subplots(1, 1)
         self.figure.clf()
@@ -301,6 +481,25 @@ class App(QtWidgets.QMainWindow):
                 if injection.list_type[i] == 'C':
                     self.main_ax.plot(injection.list_gps[i][0], injection.list_gps[i][1], 'or')
                     self.main_ax.annotate(injection.list_nodes[i], (injection.list_gps[i][0], injection.list_gps[i][1]))
+        if len(glob(self.project.gps_file)):
+            f = open(self.project.gps_file, 'r')
+            theoreticalCoordinates = csv.reader(f)
+            gpsStations = [[], []]
+            numStation = []
+            for row in theoreticalCoordinates:
+                try:
+                    numStation.append(str(int(row[0])) + ',' + str(int(row[1])))
+                except:
+                    pass
+                try:
+                    gpsStations[0].append(float(row[2]))
+                    gpsStations[1].append(float(row[3]))
+                except ValueError:
+                    pass
+
+            f.close()
+            for loc in gpsStations:
+                self.main_ax.plot(gpsStations[0], gpsStations[1], 'r+')
 
 
         self.main_ax.grid()
@@ -311,11 +510,14 @@ class App(QtWidgets.QMainWindow):
 
 
         self.canvas.draw()
-        print('test')
 
     def plotInjection_single(self, static_canvas):
 
         ex = injection_plot(self)
+
+    def gps_plot_window(self):
+
+        ex2 = gps_plot(self)
 
     def initUI(self):
         self.setWindowTitle(self.title)
@@ -339,6 +541,11 @@ class App(QtWidgets.QMainWindow):
         recordingButton.setStatusTip('Load DATA folder')
         recordingButton.triggered.connect(self.openFileDialog)
 
+        loadGPSFile = QtWidgets.QAction('Read GPS file', self)
+        loadGPSFile.setShortcut('Ctrl+G')
+        loadGPSFile.setStatusTip('Load GPS file for display')
+        loadGPSFile.triggered.connect(self.openGPSFile)
+
         readButton = QtWidgets.QAction('Read folder', self)
         readButton.setShortcut('Ctrl+R')
         readButton.setStatusTip('Read DATA folder')
@@ -352,6 +559,7 @@ class App(QtWidgets.QMainWindow):
         fileMenu.addAction(loadButton)
         fileMenu.addAction(recordingButton)
         fileMenu.addAction(readButton)
+        fileMenu.addAction(loadGPSFile)
         fileMenu.addAction(exitButton)
 
 
@@ -371,7 +579,12 @@ class App(QtWidgets.QMainWindow):
         recordButton.setStatusTip('Plot injection map')
         recordButton.triggered.connect(self.plotInjection_single)
 
+
+        gpsButton = QtWidgets.QAction('GPS information', self)
+        gpsButton.setStatusTip('Plot GPS information')
+        gpsButton.triggered.connect(self.gps_plot_window)
+
         viewMenu.addAction(injectionButton)
         viewMenu.addAction(recordButton)
-
+        viewMenu.addAction(gpsButton)
         self.show()

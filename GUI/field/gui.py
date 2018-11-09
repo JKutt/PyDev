@@ -3,6 +3,7 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 from qt_lib import App, Project
 
+sys.setrecursionlimit(5000)
 if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)

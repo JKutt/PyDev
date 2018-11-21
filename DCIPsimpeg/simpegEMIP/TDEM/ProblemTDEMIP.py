@@ -8,7 +8,7 @@ from simpegEMIP.TDEM.Survey import Survey
 from SimPEG.EM.TDEM import FieldsTDEM
 from simpegEMIP.Base import BaseEMIPProblem
 import time
-from . import getJpol as pyx
+# from . import getJpol as pyx
 from scipy.sparse import coo_matrix
 # from . import getJpol_py as pyx
 # from profilehooks import profile

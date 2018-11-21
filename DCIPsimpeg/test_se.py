@@ -44,14 +44,14 @@ def fit_with_se(time, dobs, eta0=0.01, tau0=0.1, c0=0.5):
     return np.exp(mopt), survey.dobs, invProb.dpred
 
 
-fname = "/Users/juan/PyDev/processing/testDataIP/L4300_100_QC_A.DAT"
-outname = "/Users/juan/PyDev/processing/testDataIP/L4300_Cole-Cole.DAT"
+fname = "/Users/juan/Documents/testData/Seabridge_Final.DAT"
+outname = "/Users/juan/Documents/testData/Seabridge-Final-cole-cole.DAT"
 format_dias = '%s,%s,%s,%0.3e,%0.3e,%0.3e,%0.3e\n' 
 patch = DCIP.loadDias(fname)
 out_file = open(outname, "w+")
 out_file.write('%s\n' % ("record,id1,id2,c,tau,eta,err"))
 rdg = 0
-dp = 0
+dp = 4
 
 Vp = patch.readings[rdg].Vdp[dp].Vp
 Vs = patch.readings[rdg].Vdp[dp].Vs
@@ -60,7 +60,7 @@ times = np.sqrt(patch.window_start * patch.window_end) * 1e-3
 print(Vp)
 print(Vs / Vp)
 # plt.plot(times, Vs, 'o-')
-mopt, dobs, dpred = fit_with_se(times, Vs / Vp)
+mopt, dobs, dpred = fit_with_se(times, Vs / Vp * -1)
 mx_pred = np.sum(dpred * patch.window_width) / np.sum(patch.window_width) * 1e3
 err = np.sqrt(np.sum((dobs - dpred)**2)) / dobs.size * 1e3
 print("eta: {0}, c: {1}, tau: {2} error eta: {3}".format(mx_pred, mopt[1], mopt[2], err))

@@ -76,7 +76,7 @@ class baseKernel(object):
         else:
             raise Exception('filter size must be greater than 3!')
             tHK = np.zeros(1)
-        self.kernel = tHK         # assign weighted kernal
+        self.kernel = tHK[:self.filtershape.size]         # assign weighted kernal
 
     def __mul__(self, val):
         """
@@ -356,6 +356,7 @@ class filterKernal(baseKernel):
            performs the stacking calculation
         """
         size_of_stack = int(signal.size / (self.kernel.size))
+        print("kernal size: {0} & Vt size: {1}".format(self.kernel.size, signal.size))
         Ax = np.reshape(signal, (int(size_of_stack),
                         int(self.kernel.size)), order='F')
         shape_Ax = Ax.shape
@@ -532,7 +533,7 @@ def getFrequnceyResponse(signal):
     """
     v_fft = fftpack.fft(signal)
     amplitude = np.sqrt(v_fft.real**2 + v_fft.imag**2)
-    return amplitude[0:(int(amplitude.size / 2 - 1))] / np.max(amplitude)
+    return amplitude[(int(amplitude.size / 2 - 1)):] / np.max(amplitude)
 
 
 def getCrossCorrelation(signal1, signal2):
@@ -558,6 +559,12 @@ def getPhaseResponse(signal):
     v_fft = fftpack.fft(signal)
     phase = np.arctan2(v_fft.imag, v_fft.real)
     return phase[0:(phase.size / 2 - 1)]
+
+
+def getCWT(sig, wavelet=None, widths=None):
+    if wavelet is not None:
+        cwtmatr = signal.cwt(sig, signal.ricker, widths)
+    return cwtmatr
 
 
 def getColeCole(mx_decay,
@@ -790,9 +797,12 @@ def createBruteStackWindow(num_points):
 
     return f1
 
+def createMexHatWavelet(num_points, a):
+    return signal.ricker(num_points, a)
+
 
 def createSlepianWindow(num_size, attenuation):
-    return signal.slepian(num_size, width=attenuation)
+    return signal.slepian(num_size, width=0.3)
 
 
 def createKaiserWindow(num_taps, attenuation):
@@ -802,8 +812,7 @@ def createKaiserWindow(num_taps, attenuation):
     num_taps = number of taps for the requested window
 
     """
-    x = factorial(2)
-    return x
+    return signal.kaiser(num_taps, beta=attenuation)
 
 
 def mbessel(position, max_iter):
@@ -850,28 +859,28 @@ def createChebyshevWindow(num_taps, attenuation):
     num_taps = number of taps for the requested window
 
     """
-    weights = np.zeros(num_taps)
-    summation = 0.0
-    max_value = 0.0
-    tg = np.power(10, (attenuation / 20))
-    x0 = np.cosh(1.0 / (num_taps - 1)) * np.arccosh(tg)
-    M = (num_taps - 1) / 2
-    if (num_taps % 2) == 0:
-        M = M + 0.5
-    for nn in range(num_taps / 2 + 1):
-        n = nn - M
-        summation = 0.0
-        for i in range(int(M)):
-            summation += cheby_poly(num_taps - 1.0,
-                                    x0 * np.cos((2.0 *
-                                                n * np.pi * i) / num_taps))
-        weights[nn] = tg + 2 * summation
-        weights[num_taps - nn - 1] = weights[nn]
-        if weights[nn] > max_value:
-            max_value = weights[nn]
-    for ii in range(num_taps):
-        weights[ii] /= max_value
-    return weights
+    # weights = np.zeros(num_taps)
+    # summation = 0.0
+    # max_value = 0.0
+    # tg = np.power(10, (attenuation / 20))
+    # x0 = np.cosh(1.0 / (num_taps - 1)) * np.arccosh(tg)
+    # M = (num_taps - 1) / 2
+    # if (num_taps % 2) == 0:
+    #     M = M + 0.5
+    # for nn in range(int(num_taps / 2 + 1)):
+    #     n = nn - M
+    #     summation = 0.0
+    #     for i in range(int(M)):
+    #         summation += cheby_poly(num_taps - 1.0,
+    #                                 x0 * np.cos((2.0 *
+    #                                             n * np.pi * i) / num_taps))
+    #     weights[nn] = tg + 2 * summation
+    #     weights[num_taps - nn - 1] = weights[nn]
+    #     if weights[nn] > max_value:
+    #         max_value = weights[nn]
+    # for ii in range(num_taps):
+    #     weights[ii] /= max_value
+    return signal.chebwin(num_taps, at=attenuation)
 
 
 def getPrimaryVoltage(start, end, stack):
@@ -914,8 +923,9 @@ def loadDias(fileName):
     currRdg = 0
     for i, line in enumerate(text_file):
         if i == 4:
+            print(line)
             Varinfo = line.split()
-            header4 = line
+            header5 = line
             # print(Varinfo)
         elif i == 0:
                 header1 = line
@@ -925,7 +935,9 @@ def loadDias(fileName):
                 patch.assignPatchID(id_info[1])
         elif i == 2:
                 header3 = line
-        elif i > 3:
+        elif i == 3:
+                header4 = line
+        elif i > 4:
             # try:
                     datatxt = line.split()
                     # do some Jdatamanagment stuff
@@ -950,7 +962,7 @@ def loadDias(fileName):
                     # pass
 
     text_file.close()
-    headers = [header1, header2, header3, header4]
+    headers = [header1, header2, header3, header4, header5]
     patch.assignHeaderInfo(headers)
     return patch
 
@@ -980,7 +992,7 @@ class JinDipole:
         self.Tx2y = float(InDpInfo.Tx2y)
         self.In = np.abs(float(InDpInfo.In))
         self.In_err = float(InDpInfo.In_err)
-        print(InDpInfo.In_err)
+        # print(InDpInfo.In_err)
 
     def getTxStack(self, stack_dir):
         rec_num = self.reading
@@ -1126,7 +1138,10 @@ class JvoltDipole:
         r4 = ((self.Rx2East - Idp.Tx2East)**2 +
               (self.Rx2North - Idp.Tx2North)**2 +
               (self.Rx2Elev - Idp.Tx2Elev)**2)**0.5
-        gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
+        try:
+            gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
+        except ZeroDivisionError:
+            gf = 0.0
         return 2 * np.pi * gf
 
     def calcRho(self, Idp):
@@ -1142,7 +1157,10 @@ class JvoltDipole:
         r4 = ((self.Rx2East - Idp.Tx2East)**2 +
               (self.Rx2North - Idp.Tx2North)**2 +
               (self.Rx2Elev - Idp.Tx2Elev)**2)**0.5
-        gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
+        try:
+            gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
+        except ZeroDivisionError:
+            gf = 0.0
         Vp = np.abs(self.Vp)
         if gf < 0:
             Vp = Vp * -1
@@ -1214,7 +1232,7 @@ class Jpatch:
             self.window_width[i] = (self.window_end[i] -
                                     self.window_start[i])
 
-    def writeColeColeDat(self, eta, tau, c, error, indicies, outname):
+    def writeColeColeDat(self, eta, tau, c, error, indicies, outname, start_time, end_time):
         """
         Writes Cole-Cole data from stretched exponential to file for DiasQC
         """
@@ -1224,13 +1242,22 @@ class Jpatch:
             self.readings[rdg].Vdp[dp].c = c[idx]
             self.readings[rdg].Vdp[dp].eta = eta[idx]
             self.readings[rdg].Vdp[dp].tau = tau[idx]
-            self.readings[rdg].Vdp[dp].Mx_err = (error[idx] / (self.readings[rdg].Vdp[dp].Mx)) * 100
+            if error[idx] == -99.9:
+                self.readings[rdg].Vdp[dp].Mx_err = error[idx]
+                self.readings[rdg].Vdp[dp].flagMx = "Reject"
+            else:
+                self.readings[rdg].Vdp[dp].Mx_err = error[idx] * 100
+                self.readings[rdg].Vdp[dp].flagMx = "Accept"
 
         out_file = open(outname, "w+")
         format_jup = '%6s %8s %8s %8i %13s %12.3f %12.3f %12.3f %12.0f %12.0f %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14.1f %10.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12s %14.3f %14.3f %11.0f %13s %8.3f %8.3f %8s %12.3e %12.3e %10.2f '
         # write the headers
         for i in range(len(self.headers)):
-            if i < (len(self.headers) - 1):
+            if i == 2:
+                broken = self.headers[2].split()
+                self.headers[i] = broken[0] + " " + broken[1] + " - " + str(int(start_time)) + ":" + str(int(end_time)) + "(ms)\n"
+                out_file.write('%s' % self.headers[i])
+            elif i < (len(self.headers) - 1):
                 out_file.write('%s' % self.headers[i])
             else:
                 # fix headers
@@ -1249,6 +1276,12 @@ class Jpatch:
                     cole_con = self.readings[rec].Vdp[dp].c
                     cole_tau = self.readings[rec].Vdp[dp].tau
                     cole_eta = self.readings[rec].Vdp[dp].eta
+                if np.abs(self.readings[rec].Vdp[dp].Mx_err) > 999.0:
+                    self.readings[rec].Vdp[dp].Mx_err = -99.9
+                    self.readings[rec].Vdp[dp].flagMx = "Reject"
+                if np.abs(self.readings[rec].Vdp[dp].Mx) > 999.0:
+                    self.readings[rec].Vdp[dp].Mx = -99.9
+                    self.readings[rec].Vdp[dp].flagMx = "Reject"
                 out_file.write(format_jup % (str(self.readings[rec].Vdp[dp].reading),
                                              str(self.readings[rec].Vdp[dp].dipole),
                                              str(self.readings[rec].Vdp[dp].status),

@@ -13,7 +13,6 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     # Choose all time channels
     tinds = time > start_time
     nLoc = survey_ip.dobs.T[tinds, :].shape[1]
-    print(nLoc)
     # Setup wire for different properties
     wires = Maps.Wires(('eta', nLoc), ('tau', nLoc), ('c', nLoc))
 
@@ -24,7 +23,6 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     # This is almost dummmy mesh and xyz loc at the moment
     # But, there is potential use later
     m1D = Mesh.TensorMesh([np.ones(nLoc)])
-    xyz = m1D.gridCC
 
     # # Set survey
     survey = SEMultiSurvey(time[tinds] * 1e-3, sources[:, :], n_pulse=2, T=4)
@@ -40,7 +38,10 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
 
     plt.plot(survey.dpred(m0))
     plt.plot(survey.dobs, '.')
-    # plt.show()
+    plt.title("Obs & pred")
+    plt.xlabel("data point")
+    plt.ylabel("value")
+    plt.show()
 
     mreg = Mesh.TensorMesh([len(m0)])
     dmisfit = DataMisfit.l2_DataMisfit(survey)
@@ -78,7 +79,7 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     DPRED = invProb.dpred.reshape((nLoc, time[tinds].size))
     DOBS = survey.dobs.reshape((nLoc, time[tinds].size))
     UNCERT = uncert.reshape((nLoc, time[tinds].size))
-    error = np.sqrt(np.sum((DOBS - DPRED)**2, axis=1) / time[tinds].size)
+    error = ((eta * 1e-3) / np.sqrt(np.sum((DOBS - DPRED)**2, axis=1) / time[tinds].size))
 
     from matplotlib import colors
     fig = plt.figure(figsize=(6, 5))
@@ -92,7 +93,7 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     plt.xlabel("Tau")
     plt.ylabel("c")
     cb.set_label("Eta (mV/V)")
-    # plt.show()
+    plt.show()
 
     inds = (abs((DPRED - DOBS) / UNCERT).sum(axis=1) / time[tinds].size < 20.)
     # print(inds)
@@ -111,18 +112,34 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
         ax.set_title(titles[i])
         ax.set_xticklabels([("%.1f") % (10**tick) for tick in ax.get_xticks()])
     plt.tight_layout()
-    # plt.show()
+    plt.show()
 
     return eta, tau, c, error
 
 
-fname = "/Users/juan/PyDev/processing/testDataIP/L4300_100_QC_A.DAT"
-outname = "/Users/juan/PyDev/processing/testDataIP/Seabridge_Cole-Cole.DAT"
+# ================================== User Area ==================
+# File name
+fname = "/Users/juan/Documents/testData/L4300_100_QC_A.DAT"
+# title of output file
+outname = "/Users/juan/Documents/testData/L4300_100_QC_A-CC.DAT"
+# load the data file
 patch = DCIP.loadDias(fname)
+# create simpeg survey Object
 survey_ip = patch.createDcSurvey("IP", ip_type="decay")
+# create time vector
 time = patch.window_center
+# set the starting and ending times of the data for the inversion
+start_time = 500.0
+end_time = 2000.0
+# get all available injection locations from data file
 injections = patch.getSources2(dipole=True)
+# get all resistivities of accepted Mx data points
 app_rho = patch.getApparentResistivity(reject="Mx")
+# get indiiceis of all accepted Mx data points
 inds_active = patch.getActiveIndicies(reject="Mx")
-eta, tau, c, error = fitWithStretchedExponetial(time, survey_ip, injections, app_rho, 500.0)
-patch.writeColeColeDat(eta, tau, c, error, inds_active, outname)
+# run the inversion scheme
+eta, tau, c, error = fitWithStretchedExponetial(time, survey_ip, injections,
+                                                app_rho, start_time)
+# write data to file
+patch.writeColeColeDat(eta, tau, c, error, inds_active, outname,
+                       start_time, end_time)

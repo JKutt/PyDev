@@ -43,9 +43,9 @@ class ubcColumn:
 
 
 # define the file required for import
-fileName = "/Users/juan/Documents/testData/Fremont_Culled_Loke_rotated.xyz"
-outName = "/Users/juan/Documents/testData/Fremont_Culled_Loke-trim.con"
-outMesh = "/Users/juan/Documents/testData/Fremont_Culled_Loke-trim.msh"
+fileName = "C:/Users/johnk/Projects/Karst/loke/B10-DC-iter13.xyz"
+outName = "C:/Users/johnk/Projects/Karst/loke/B10-DC-iter13-trim.con"
+outMesh = "C:/Users/johnk/Projects/Karst/loke/B10-DC-iter13-trim.msh"
 lines = 0
 splarray = " "
 
@@ -221,125 +221,4 @@ for n in range(len(col_cell)):
             ubc_.append(null_flag)
     ubcColCells.append(ubcColumn(ubc_, xp, yp))        # assigns the ubc column
 
-#################################################
-# rotate the data
-
-xp = np.zeros(len(ubcColCells))
-yp = np.zeros(len(ubcColCells))
-maxX = ubcColCells[0].x
-minX = ubcColCells[0].x
-maxY = ubcColCells[0].y
-minY = ubcColCells[0].y
-# maxZ = ubcColCells[0].z
-# minZ = ubcColCells[0].z
-for j in range(len(ubcColCells)):
-    xp[j] = ubcColCells[j].x
-    yp[j] = ubcColCells[j].y
-    if maxX < ubcColCells[j].x:
-        maxX = ubcColCells[j].x
-    if minX > ubcColCells[j].x:
-        minX = ubcColCells[j].x
-    if maxY < ubcColCells[j].y:
-        maxY = ubcColCells[j].y
-    if minY > ubcColCells[j].y:
-        minY = ubcColCells[j].y
-    # if maxZ < ubcColCells[j].z:
-    #     maxZ = ubcColCells[j].z
-    # if minz > ubcColCells[j].z:
-        # minz = ubcColCells[j].z
-#################################################
-# create new mesh and model to new rotated data
-half_xcell = dist_x / 4.0
-half_ycell = dist_y / 4.0
-numZcell = len(ubcColCells[0].cells)
-numXcell_new = np.ceil(
-    ((maxX + half_xcell) - (minX - half_xcell)) / (dist_x / 2.0))
-numYcell_new = np.ceil(
-    ((maxY + half_ycell) - (minY - half_ycell)) / (dist_y / 2.0))
-header1 = str(numXcell_new) + ' ' + str(numYcell_new) + ' ' + str(numZcell)
-
-new_cells = []
-x_length = numXcell_new * (dist_x / 2.0)
-x_new = np.arange(0, x_length, (dist_x / 2.0))
-y_length = numYcell_new * (dist_y / 2.0)
-y_new = np.arange(0, y_length, (dist_y / 2.0))
-header3 = str(numXcell_new) + '*' + str(dist_x / 2.0)
-header4 = str(numYcell_new) + '*' + str(dist_y / 2.0)
-# lets create a null column
-nulcol = ubcColCells[0].cells
-for i in range(len(nulcol)):
-    nulcol[i] = null_flag
-# create the new models cells
-for i in range(y_new.size - 1):
-    for j in range(x_new.size - 1):
-        mcell = ubcColumn(nulcol, 0.0, 0.0)
-        mcell.x0 = x_new[j]
-        mcell.x1 = x_new[j + 1]
-        mcell.y0 = y_new[i]
-        mcell.y1 = y_new[i + 1]
-        new_cells.append(mcell)
-
-# search through and assign data
-for idx in range(len(new_cells)):
-    for idx1 in range(len(ubcColCells)):
-        if ((new_cells[idx].x0 < ubcColCells[idx1].x < new_cells[idx].x1) and (new_cells[idx].y0 < ubcColCells[idx1].y < new_cells[idx].y1)):
-            if new_cells[idx].nulled:
-                new_cells[idx].cells = ubcColCells[idx1].cells
-                new_cells[idx].nulled = False
-                # print new_cells[idx].cells
-            else:
-                for k in range(len(new_cells[idx].cells)):
-                    new_cells[idx].cells[k] = (
-                        new_cells[idx].cells[k] +
-                        ubcColCells[idx1].cells[k]) / 2.0
-
-
-# likely a waiste but just to get it done; translate back to proper coords.
-min_e = new_cells[0].x0 + trans_point_X
-min_n = new_cells[0].y0 + trans_point_Y
-max_z = levels[0]
-for idx in range(len(new_cells)):
-    new_cells[idx].x0 = new_cells[idx].x0 + trans_point_X
-    new_cells[idx].x1 = new_cells[idx].x1 + trans_point_X
-    new_cells[idx].y0 = new_cells[idx].y0 + trans_point_Y
-    new_cells[idx].y1 = new_cells[idx].y1 + trans_point_Y
-    if min_e > new_cells[idx].x0:
-        min_e = new_cells[idx].x0
-    if min_n > new_cells[idx].y0:
-        min_n = new_cells[idx].y0
-
-header2 = str(min_e) + ' ' + str(min_n) + ' ' + str(max_z)
-#################################################
-# and done! now write it to file
-out_file = open(outName, "w")
-# now the formatting has been completed
-for idx in range(len(new_cells)):
-    for k in range(len(new_cells[idx].cells)):
-        try:
-            out_file.write("%0.5e\n" % 1.0 / new_cells[idx].cells[k])
-        except:
-            out_file.write("%0.5e\n" % 1e-8)
-
-out_file.close()
-
-header5 = ''
-for i in range(len(cell_div)):
-    if i == 0:
-        header5 = str(cell_div[i])
-    else:
-        header5 = header5 + " " + str(cell_div[i])
-
-# write meshg file
-out_msh_file = open(outMesh, "w")
-out_msh_file.write("%s\n" % header1)
-out_msh_file.write("%s\n" % header2)
-out_msh_file.write("%s\n" % header3)
-out_msh_file.write("%s\n" % header4)
-out_msh_file.write("%s\n" % header5)
-out_msh_file.close()
-# print len(col)
-plt.plot(xp, yp, 'o')
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# ax.scatter(x, y, z, c='r')
-plt.show()
+    

@@ -990,7 +990,7 @@ class JinDipole:
         self.Tx1y = float(InDpInfo.Tx1y)
         self.Tx2x = float(InDpInfo.Tx2x)
         self.Tx2y = float(InDpInfo.Tx2y)
-        self.In = np.abs(float(InDpInfo.In))
+        self.In = float(InDpInfo.In)
         self.In_err = float(InDpInfo.In_err)
         # print(InDpInfo.In_err)
 
@@ -1161,11 +1161,8 @@ class JvoltDipole:
             gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
         except ZeroDivisionError:
             gf = 0.0
-        Vp = np.abs(self.Vp)
-        if gf < 0:
-            Vp = Vp * -1
         # print("Vp: {0}".format(self.Vp))
-        rho = (Vp / Idp.In) * 2 * np.pi * gf
+        rho = (self.Vp / Idp.In) * 2 * np.pi * gf
         self.Rho = rho
         return rho
 

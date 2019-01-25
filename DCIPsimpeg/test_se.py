@@ -43,14 +43,15 @@ def fit_with_se(time, dobs, eta0=0.01, tau0=0.1, c0=0.5):
     return np.exp(mopt), survey.dobs, invProb.dpred
 
 
+# == Ver. 0.2
 # ============================ User area ==============================
 # set variables
-fname = "/Users/juan/Documents/testData/L4300_100_QC_A.DAT"
-outname = "/Users/juan/Documents/testData/L4300_100_QC_A_cole-cole.DAT"
+fname = "E:/Projects/debug/Gunjan/L15_200-1200snapped.DAT"
+outname = "E:/Projects/debug/Gunjan/L15_200-1200snapped-CC.DAT"
 # load the data file
 patch = DCIP.loadDias(fname)
 # set the start and end time of the data that is fed into inversion
-start_time = 500
+start_time = 0
 end_time = 2000
 # make time vector
 times_gates = patch.window_center
@@ -58,6 +59,7 @@ times_gates = patch.window_center
 times = np.sqrt(patch.window_start * patch.window_end)
 # get indicies
 tinds = times > start_time
+print(times[tinds])
 error = []
 c = []
 tau = []
@@ -101,6 +103,7 @@ tau_ = np.vstack(tau)
 active_inds = np.vstack(index_list)
 error = np.vstack(error)
 plt.plot(error, '*')
+plt.title("Error in Vs Decays")
 plt.show()
 # Figure out the times
 start_inds = (patch.window_start > start_time)
@@ -118,8 +121,11 @@ properties = [Rho, eta_,
 titles = ["$\\rho_{a}$", "$\\eta_{a}$", "$\\tau_{a}$", "$c_{a}$"]
 colors = ['#1f77b4', 'seagreen', 'crimson', 'gold']
 for i, ax in enumerate(axs):
-    out = ax.hist(np.log10(properties[i]), bins=50, color=colors[i])
-    ax.set_title(titles[i])
-    ax.set_xticklabels([("%.1f") % (10**tick) for tick in ax.get_xticks()])
+    try:
+        out = ax.hist(np.log10(properties[i]), bins=50, color=colors[i])
+        ax.set_title(titles[i])
+        ax.set_xticklabels([("%.1f") % (10**tick) for tick in ax.get_xticks()])
+    except:
+        pass
 plt.tight_layout()
 plt.show()

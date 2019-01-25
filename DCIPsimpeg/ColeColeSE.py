@@ -117,11 +117,12 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     return eta, tau, c, error
 
 
+# == Ver. 0.2
 # ================================== User Area ==================
 # File name
-fname = "/Users/juan/Documents/testData/L4300_100_QC_A.DAT"
+fname = "E:/Projects/debug/Gunjan/L15_200-1200snapped.DAT"
 # title of output file
-outname = "/Users/juan/Documents/testData/L4300_100_QC_A-CC.DAT"
+outname = "E:/Projects/debug/Gunjan/L15_200-1200snapped-CC.DAT"
 # load the data file
 patch = DCIP.loadDias(fname)
 # create simpeg survey Object
@@ -129,7 +130,7 @@ survey_ip = patch.createDcSurvey("IP", ip_type="decay")
 # create time vector
 time = patch.window_center
 # set the starting and ending times of the data for the inversion
-start_time = 500.0
+start_time = 400.0
 end_time = 2000.0
 # get all available injection locations from data file
 injections = patch.getSources2(dipole=True)

@@ -49,9 +49,6 @@ window = DCIP.createHanningWindow(num_half_T)   # creates filter window
 window2 = DCIP.createSlepianWindow(int(num_half_T), 0.3)
 window3 = DCIP.createChebyshevWindow(int(num_half_T), 500)
 window4 = DCIP.createKaiserWindow(int(num_half_T), 54)
-print(DCIP.createHanningWindow(56), DCIP.createHanningWindow(56).size)
-plt.plot(DCIP.createHanningWindow(56))
-plt.show()
 # window3 = DCIP.createHanningWindow(7)   # creates filter window
 # window2 = DCIP.createBruteStackWindow(int(num_half_T))
 # # print(window2.size, window.size)
@@ -67,7 +64,7 @@ dkernal = DCIP.decayKernal(num_windows=np.asarray(timeTo).size,
                            window_overlap=0.99,
                            output_type="Vs")  # creates decay kernal
 stack = tHK * xt                               # stack data
-# stack2 = tHK2 * xt                               # stack data
+stack2 = tHK2 * xt                               # stack data
 # # ens = eHK * xt
 # # plt.plot(stack)
 # # plt.show()
@@ -83,12 +80,6 @@ decay2 = dkernal * (tHK2 * xt)         # calculates the decay
 # # # end =======================================================
 # # plt.plot(dkernal.getWindowCenters(), win_std)
 # # plt.show()
-# xt_p = DCIP.padNextPower2(xt)
-# widths = np.arange(1, 31)
-# cwt = DCIP.getCWT(xt_p, xt, widths=widths)
-# plt.imshow(cwt, extent=[-1, 1, 1, 31], cmap='PRGn', aspect='auto',
-#            vmax=abs(cwt).max(), vmin=-abs(cwt).max())
-# plt.show()
 # plot results
 # fig = plt.figure(figsize=(10, 8))
 # ax1 = plt.subplot(311)
@@ -117,8 +108,17 @@ decay2 = dkernal * (tHK2 * xt)         # calculates the decay
 # ax2.set_title("Secondary Voltage (decay)")
 # ax3 = plt.subplot(325)
 # ax3.plot(tHK * -xt)
-# ax3.plot(tHK2 * -xt)
 # ax3.set_xlabel("num samples")
 # ax3.set_ylabel("Voltage (mV)")
 # ax3.set_title("Stack (decay)")
-# plt.show()
+fig = plt.figure(figsize=(10, 8))
+ax1 = plt.subplot(311)
+ax1.plot(xt, 'r')
+ax1.set_xlabel("num samples")
+ax1.set_ylabel("voltage (mV)")
+ax1.set_title("Raw time-series")
+ax4 = plt.subplot(312)
+ax4.plot(tHK.getFilterKernal, 'og')
+ax4.set_xlabel("num taps")
+ax4.set_ylabel("amplitude")
+plt.show()

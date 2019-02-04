@@ -3,6 +3,7 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 from io_lib import Record, Injection
 import io_lib as iolib
+import clustering_lib as clustering
 from glob import glob
 from functools import partial
 from matplotlib.pylab import plt
@@ -12,6 +13,9 @@ import matplotlib.lines as mlines
 import numpy as np
 import utm
 import csv
+import gpxpy
+import gpxpy.gpx
+
 shortLegend = mlines.Line2D([], [], color='magenta', marker='v', linestyle='None', label='Short')
 nodeLegend = mlines.Line2D([], [], color='black', marker='o', linestyle='None', label='Node')
 currentRecorderLegend = mlines.Line2D([], [], color='red', marker='o', linestyle='None', label='Current Recorder')
@@ -54,6 +58,127 @@ class Project:
     def initialize_node_data(self):
         self.node_data = [[] for i in range(len(self.injections))]
 
+class locations_plot(QtWidgets.QMainWindow):
+
+    def __init__(self, parent=None):
+        super(locations_plot, self).__init__(parent)
+        self._main = QtWidgets.QWidget()
+        self.title = 'Locations viewer - DIAS GEOPHYSICAL'
+        self.left = 10
+        self.top = 10
+        self.width = 1300
+        self.height = 700
+        self.project = parent.project
+        self.index = 0
+        self.initUI()
+		
+    def loadGPX(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*)", options=options)
+        if file:
+            print('GPX file read:', file)
+            try:
+                gpx_data = iolib.read_gpx(file)
+                self.figure.clf()
+                self.ax0 = self.figure.add_subplot(111)
+                for info in gpx_data:
+                	self.ax0.plot(info[0], info[1], 'r*')
+                	self.ax0.annotate(info[2], (info[0], info[1]))
+                #self.ax0.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                #           fancybox=True, shadow=True, ncol=1)
+						   
+                self.ax0.set_ylabel('Northing (km)')
+                self.ax0.set_xlabel('Easting (km)')
+                self.canvas.draw()
+            except:
+                print('Issue with the file.')
+        else:
+            print('Cannot read file.')
+		
+    def saveGPX(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*)", options=options)
+        if file:
+            print('GPX file read:', file)
+        gpx_data = iolib.read_gpx(file)        
+	
+    def clusterFiles(self):
+        gpx = clustering.cluster_data_folder(self.project.recording_file, self.project.data_path)
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, 'Select a folder where to save GPX:', 'C:\\', QtWidgets.QFileDialog.ShowDirsOnly)
+        if directory:
+            print('Directory read:', directory)
+        fOut = open(directory + '/GPX_folder.gpx', 'w')
+        fOut.write(gpx.to_xml())
+        fOut.close()
+        print('File saved.')
+		
+    def clusterNodesMessages(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*)", options=options)
+        if file:
+            print('File read:', file)
+        node_messages_file = file
+        gpx = clustering.cluster_nodes_messages(node_messages_file)
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, 'Select a folder where to save GPX:', 'C:\\', QtWidgets.QFileDialog.ShowDirsOnly)
+        if directory:
+            print('Directory read:', directory)
+        fOut = open(directory + '/GPX_nodes_messages.gpx', 'w')
+        fOut.write(gpx.to_xml())
+        fOut.close()
+        print('File saved.')
+	    
+    def initUI(self):
+	    self.index = 0
+	    self.setWindowTitle(self.title)
+	    self.setWindowIcon(QtGui.QIcon('pythonlogo.png'))
+	    self.setGeometry(self.left, self.top, self.width, self.height)
+
+	    self.main_widget = QtWidgets.QWidget(self)
+	    self.main_widget.setGeometry(100, 75, self.frameGeometry().width() - 200, self.frameGeometry().height() - 50 * 2)
+	    self.layout = QtWidgets.QVBoxLayout(self.main_widget)
+	    self.figure = plt.Figure(dpi=80)
+	    self.canvas = FigureCanvas(self.figure)
+	    self.layout.addWidget(self.canvas)
+	    self.addToolBar(NavigationToolbar(self.canvas, self))
+
+	    mainMenu = self.menuBar()
+	    fileMenu = mainMenu.addMenu('File')
+	    loadSingle = QtWidgets.QAction('Load GPX file', self)
+	    loadSingle.setShortcut('Ctrl+O')
+	    loadSingle.setStatusTip('Load single GPS file to see track')
+	    loadSingle.triggered.connect(self.loadGPX)
+
+	    loadNode = QtWidgets.QAction('Load node folder', self)
+	    loadNode.setShortcut('Ctrl+O')
+	    loadNode.setStatusTip('Load node folder')
+	    #loadNode.triggered.connect(self.plot_node_track)
+
+	    exitButton = QtWidgets.QAction(QtGui.QIcon('exit24.png'), 'Exit', self)
+	    exitButton.setShortcut('Ctrl+Q')
+	    exitButton.setStatusTip('Exit application')
+	    exitButton.triggered.connect(self.close)
+
+	    clusteringMenu = mainMenu.addMenu('Clustering')
+	    clusterFiles = QtWidgets.QAction('Cluster node files', self)
+	    clusterFiles.setShortcut('Ctrl+N')
+	    clusterFiles.setStatusTip('Clustering node DAT files')
+	    clusterFiles.triggered.connect(self.clusterFiles)
+	    clusterMessages = QtWidgets.QAction('Cluster node messages', self)
+	    clusterMessages.setShortcut('Ctrl+M')
+	    clusterMessages.setStatusTip('Clustering node messages files')
+	    clusterMessages.triggered.connect(self.clusterNodesMessages)		
+	    fileMenu.addAction(loadSingle)
+	    fileMenu.addAction(loadNode)
+	    fileMenu.addAction(exitButton)
+
+	    clusteringMenu.addAction(clusterFiles)
+	    clusteringMenu.addAction(clusterMessages)
+
+	    self.show()
+
 class gps_plot(QtWidgets.QMainWindow):
 
     def __init__(self, parent=None):
@@ -62,8 +187,8 @@ class gps_plot(QtWidgets.QMainWindow):
         self.title = 'GPS plot - DIAS GEOPHYSICAL'
         self.left = 10
         self.top = 10
-        self.width = 2000
-        self.height = 1600
+        self.width = 1000
+        self.height = 800
         self.project = parent.project
         self.index = 0
         self.initUI()
@@ -100,10 +225,14 @@ class gps_plot(QtWidgets.QMainWindow):
                     easting[i] = np.nan
                     northing[i] = np.nan
             self.figure.clf()
-            self.ax0 = self.figure.add_subplot(111)
+            self.ax0 = self.figure.add_subplot(311)
             self.ax0.plot(easting, northing, 'ro')
             self.ax0.plot(gpsAverage[0], gpsAverage[1], '*b')
             self.ax0.grid()
+            self.ax1 = self.figure.add_subplot(312)
+            self.ax1.plot(easting, 'ro')
+            self.ax2 = self.figure.add_subplot(313)
+            self.ax2.plot(northing, 'bo')
             if len(glob(self.project.gps_file)):
                 f = open(self.project.gps_file, 'r')
                 theoreticalCoordinates = csv.reader(f)
@@ -184,7 +313,7 @@ class gps_plot(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget(self)
         self.main_widget.setGeometry(250, 100, self.frameGeometry().width() - 300, self.frameGeometry().height() - 100 * 2)
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
-        self.figure = plt.Figure()
+        self.figure = plt.Figure(dpi=80)
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.addToolBar(NavigationToolbar(self.canvas, self))
@@ -212,6 +341,75 @@ class gps_plot(QtWidgets.QMainWindow):
 
         self.show()
 
+class data_plot(QtWidgets.QMainWindow):
+
+    def __init__(self, parent=None):
+        super(data_plot, self).__init__(parent)
+        self._main = QtWidgets.QWidget()
+        self.title = 'GPS plot - DIAS GEOPHYSICAL'
+        self.left = 10
+        self.top = 10
+        self.width = 1000
+        self.height = 800
+        self.project = parent.project
+        self.index = 0
+        self.initUI()
+
+
+    def plot_data(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Python Files (*.py)", options=options)
+        if file:
+            print('File read:', file)
+            fIn = open(file, 'r')
+            fLines = fIn.readlines()
+            fIn.close()
+            time, data = iolib.read_data(fLines)
+            info = iolib.get_dat_info(fLines)
+            self.figure.clf()
+            self.figure.suptitle('Mem #: ' + str(info[1]))
+            self.ax0 = self.figure.add_subplot(111)
+            self.ax0.plot(time, data - np.mean(data), label=file)
+
+            self.ax0.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                   fancybox=True, shadow=True, ncol=1)
+            self.canvas.draw()
+
+    def initUI(self):
+        self.index = 0
+        self.setWindowTitle(self.title)
+        self.setWindowIcon(QtGui.QIcon('pythonlogo.png'))
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+        self.main_widget = QtWidgets.QWidget(self)
+        self.main_widget.setGeometry(250, 100, self.frameGeometry().width() - 300, self.frameGeometry().height() - 100 * 2)
+        self.layout = QtWidgets.QVBoxLayout(self.main_widget)
+        self.figure = plt.Figure(dpi=80)
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+        self.addToolBar(NavigationToolbar(self.canvas, self))
+
+        mainMenu = self.menuBar()
+        fileMenu = mainMenu.addMenu('File')
+        loadSingle = QtWidgets.QAction('Load single file', self)
+        loadSingle.setShortcut('Ctrl+O')
+        loadSingle.setStatusTip('Load single data file')
+        loadSingle.triggered.connect(self.plot_data)
+
+        exitButton = QtWidgets.QAction(QtGui.QIcon('exit24.png'), 'Exit', self)
+        exitButton.setShortcut('Ctrl+Q')
+        exitButton.setStatusTip('Exit application')
+        exitButton.triggered.connect(self.close)
+
+        fileMenu.addAction(loadSingle)
+        fileMenu.addAction(exitButton)
+
+        self.show()
+
+
+
+
 class injection_plot(QtWidgets.QMainWindow):
 
     def __init__(self, parent=None):
@@ -220,8 +418,8 @@ class injection_plot(QtWidgets.QMainWindow):
         self.title = 'Injection plot'
         self.left = 10
         self.top = 10
-        self.width = 2000
-        self.height = 1600
+        self.width = 1000
+        self.height = 800
         self.project = parent.project
         self.index = 0
         self.initUI()
@@ -327,7 +525,7 @@ class injection_plot(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget(self)
         self.main_widget.setGeometry(250, 100, self.frameGeometry().width() - 300, self.frameGeometry().height() - 100 * 2)
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
-        self.figure = plt.Figure()
+        self.figure = plt.Figure(dpi=80)
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.addToolBar(NavigationToolbar(self.canvas, self))
@@ -352,8 +550,8 @@ class App(QtWidgets.QMainWindow):
         self.title = 'DIAS Field GUI'
         self.left = 10
         self.top = 10
-        self.width = 640 * 3
-        self.height = 400 * 3
+        self.width = 640 * 2
+        self.height = 400 * 2
         self.project = Project()
         self.project.data_path = "C:/Users/HugoLarnier/Desktop/Projects/MMG_McArthur_2018/L36/DATA/"
         self.project.recording_file = "C:/Users/HugoLarnier/Desktop/Projects/MMG_McArthur_2018/L36/LogFiles/Recordings_36.txt"
@@ -400,7 +598,7 @@ class App(QtWidgets.QMainWindow):
             for node in self.project.list_nodes:
                 print("Checking node: " + node)
                 logFile.write("Checking node: " + node + '\n')
-                datNode = iolib.get_list_files(self.project.data_path + 'DATA', node)
+                datNode = iolib.get_list_files(self.project.data_path, node)
                 iolib.check_list_files(datNode, logFile)
             logFile.close()
             print("Done! You can now check the file " + self.project.data_path + "checkDataFolder.log")
@@ -440,7 +638,9 @@ class App(QtWidgets.QMainWindow):
                                                              relay_state=info[2],
                                                              northing=gpsLocations[0],
                                                              easting=gpsLocations[1],
-                                                             altitude=gpsLocations[2]))
+                                                             altitude=gpsLocations[2],
+															 line=info[6],
+															 station=info[7]))
                         except IndexError:
                             pass
                     else:
@@ -470,6 +670,7 @@ class App(QtWidgets.QMainWindow):
         else:
             print("You forgot to load stuff. Please do.")
 
+		
     def plotInjections(self):
         #figInj, ax0 = plt.subplots(1, 1)
         self.figure.clf()
@@ -519,6 +720,22 @@ class App(QtWidgets.QMainWindow):
 
         ex2 = gps_plot(self)
 
+    def data_plot_window(self):
+    	
+    	    ex3 = data_plot(self)
+
+    def clusterData(self):
+	    ex4 = locations_plot(self)
+		
+    def checkMissingData(self):
+	    options = QtWidgets.QFileDialog.Options()
+	    options |= QtWidgets.QFileDialog.DontUseNativeDialog
+	    file, _ = QtWidgets.QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;CSV Files (*.csv)", options=options)
+	    if file:
+	        print('File read:', file)
+	    iolib.checkMissingFiles(file, self.project.data_path)
+
+
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setWindowIcon(QtGui.QIcon('pythonlogo.png'))
@@ -527,7 +744,6 @@ class App(QtWidgets.QMainWindow):
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('File')
         viewMenu = mainMenu.addMenu('View')
-        searchMenu = mainMenu.addMenu('Search')
         toolsMenu = mainMenu.addMenu('Tools')
         helpMenu = mainMenu.addMenu('Help')
 
@@ -566,7 +782,7 @@ class App(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget(self)
         self.main_widget.setGeometry(50, 100, self.frameGeometry().width() - 50 * 2, self.frameGeometry().height() - 100 * 2)
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
-        self.figure = plt.Figure()
+        self.figure = plt.Figure(dpi=80)
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.addToolBar(NavigationToolbar(self.canvas, self))
@@ -579,12 +795,27 @@ class App(QtWidgets.QMainWindow):
         recordButton.setStatusTip('Plot injection map')
         recordButton.triggered.connect(self.plotInjection_single)
 
-
         gpsButton = QtWidgets.QAction('GPS information', self)
         gpsButton.setStatusTip('Plot GPS information')
         gpsButton.triggered.connect(self.gps_plot_window)
 
+        dataButton = QtWidgets.QAction('Data information', self)
+        dataButton.setStatusTip('Data GPS information')
+        dataButton.triggered.connect(self.data_plot_window)
+
         viewMenu.addAction(injectionButton)
         viewMenu.addAction(recordButton)
         viewMenu.addAction(gpsButton)
+        viewMenu.addAction(dataButton)
+
+        gpsClusteringButton = QtWidgets.QAction('GPS locations', self)
+        gpsClusteringButton.setStatusTip('GPS locations')
+        gpsClusteringButton.triggered.connect(partial(self.clusterData))
+
+        missingDataButton = QtWidgets.QAction('Check missing data', self)
+        missingDataButton.setStatusTip('Check for missing data')
+        missingDataButton.triggered.connect(partial(self.checkMissingData))
+
+        toolsMenu.addAction(gpsClusteringButton)
+        toolsMenu.addAction(missingDataButton)
         self.show()

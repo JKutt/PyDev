@@ -10,6 +10,10 @@ import utm
 from sys import platform
 import julian
 
+import gpxpy
+import gpxpy.gpx
+from gpxpy.parser import GPXParser
+
 ## Written by H. LARNIER, Oct 2018 - DIAS GEOPHYSICAL LTD.
 
 if platform == 'linux1' or platform == 'linux2' or platform == 'darwin':
@@ -31,7 +35,9 @@ class Record:
                  relay_state=None,
                  northing=None,
                  easting=None,
-                 altitude=None):
+                 altitude=None,
+				 line=None,
+				 station=None):
         self.name = name
         self.node_id = node_id
         self.node_type = node_type
@@ -42,6 +48,8 @@ class Record:
         self.northing = northing
         self.easting = easting
         self.altitude = altitude
+        self.line = line
+        self.station = station
 
     def getUtm(self):
         tmp = utm.from_latlon(self.northing, self.easting)
@@ -104,6 +112,21 @@ def list_nodes(data_folder):
         node_list[i] = tmp[-1]
 
     return node_list
+
+
+def read_gpx(file):	
+	xml = open(file, 'r')
+	gpx = GPXParser()
+	gpx.init(xml)
+	gpx.parse()
+	infos = []
+	for waypoint in gpx.gpx.waypoints:
+		try:
+			tmp = utm.from_latlon(waypoint.latitude, waypoint.longitude)
+			infos.append([tmp[0], tmp[1], waypoint.name])
+		except:
+			print('Point: ' + waypoint.name + 'cannot be read')
+	return infos
 
 def read_log_file(log_file):
     # Reads the log file and return injection number + time stamp
@@ -223,7 +246,7 @@ def get_dat_info(lines):
     # lines: list of lines from DAT file
     # Output:
     # dat_info: list of information (Unit ID, MEM number, Relay state, if current of potential)
-    dat_info = ['', 0, '', '', 0., 0.]
+    dat_info = ['', 0, '', '', 0., 0., 0, 0]
     for line in lines:
         if not line[0] == '#':
             break
@@ -248,6 +271,12 @@ def get_dat_info(lines):
             if line[1:18] == 'Override Northing':
                 tmp = line.split(':')
                 dat_info[4] = float(tmp[1][:-1])
+            if line[1:5] == 'Line':
+                tmp = line.split(':')
+                dat_info[6] = int(tmp[1][:-1])
+            if line[1:8] == 'Station':
+                tmp = line.split(':')
+                dat_info[7] = int(tmp[1][:-1])
     return dat_info
 
 
@@ -433,6 +462,8 @@ def write_node_entry(rec, file):
     file.write('\t\t<northing:' + str(rec.northing) + '>\n')
     file.write('\t\t<easting:' + str(rec.easting) + '>\n')
     file.write('\t\t<altitude:' + str(rec.altitude) + '>\n')
+    file.write('\t\t<line:' + str(rec.line) + '>\n')
+    file.write('\t\t<station:' + str(rec.station) + '>\n')
 
     return
 
@@ -512,8 +543,14 @@ def read_library_file(library_file):
             elif count == 8:
                 tmp = line.split('altitude:')
                 altitude = tmp[1][:-2]
+            elif count == 9:
+                tmp = line.split('line:')
+                line_data = tmp[1][:-2]
+            elif count == 10:
+                tmp = line.split('station:')
+                station = tmp[1][:-2]
             count += 1
-        if count == 9:
+        if count == 11:
             try:
                 recs[node_index].append(Record(node_id=node_id,
                                                node_type=node_type,
@@ -524,7 +561,9 @@ def read_library_file(library_file):
                                                relay_state=relay_state,
                                                northing=float(northing),
                                                easting=float(easting),
-                                               altitude=float(altitude)))
+                                               altitude=float(altitude),
+											   line=int(line_data),
+											   station=int(station)))
             except IndexError:
                 pass
             count = 0
@@ -823,3 +862,66 @@ def read_data(lines):
         data[i] = (data[i] / factor) - adc_offset
 
     return time_pps[0:], data[0:len(time_pps)]
+
+def checkMissingFiles(nodes_messages_file, data_folder):
+
+	fIn = open(nodes_messages_file, 'r')
+	lines = fIn.readlines()
+	fIn.close()
+
+	list_files = []
+
+	for line in lines:
+		if '.dat' in line:
+			tmp = line.split(',')
+			for string in tmp:
+				if '.dat' in string:
+					list_files.append(string[:-4])
+					
+			
+	listNodes = list_nodes(data_folder)
+	list_upload = []
+
+	for node in listNodes:
+		files = get_list_files(data_folder, node)
+		for file in files:
+			list_upload.append(file[:-4])
+	missing = []
+	for file in list_files:
+		if not file in list_upload:
+			missing.append(file)
+	missing = np.unique(missing)
+	missing = missing.tolist()
+
+	missingNodesList = []
+	missingNodesFiles = []
+	for file in missing:
+		id = file[0:2]
+		if not id in missingNodesList:
+			missingNodesList.append(id)
+			missingNodesFiles.append([])
+	missingNodesList = np.sort(missingNodesList)
+	missingNodesList = missingNodesList.tolist()
+	for file in missing:
+		id = file[0:2]
+		ind = missingNodesList.index(id)
+		missingNodesFiles[ind].append(file + '.dat')
+		
+		
+	fOut = open('list_missing.csv', 'w')
+	for i in range(len(missingNodesList)):
+		fOut.write(missingNodesList[i] + ',')
+	fOut.write('\n')
+	nb = [len(missingNodesFiles[i]) for i in range(len(missingNodesList))]
+	nb2 = np.max(nb)
+	for i in range(nb2):
+		for j in range(len(missingNodesList)):
+			if i == 1 and nb[j] == 1:
+				fOut.write(',')
+			else:
+				if i >= nb[j]:
+					fOut.write(',')
+				else:
+					fOut.write(missingNodesFiles[j][i] + ',')
+		fOut.write('\n')
+	print('You can now check the list of missing files at:' + 'list_missing.csv')

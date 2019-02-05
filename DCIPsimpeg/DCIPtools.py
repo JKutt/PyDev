@@ -1172,9 +1172,9 @@ class JvoltDipole:
             gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
         except ZeroDivisionError:
             gf = 0.0
-        Vp = self.Vp
+
         # print("Vp: {0}".format(self.Vp))
-        rho = (Vp / Idp.In) * 2 * np.pi * gf
+        rho = (self.Vp / Idp.In) * 2 * np.pi * gf
         self.Rho = rho
         return rho
 

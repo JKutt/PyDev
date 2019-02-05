@@ -117,11 +117,12 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     return eta, tau, c, error
 
 
+# == Ver. 0.2
 # ================================== User Area ==================
 # File name
-fname = "/Users/juan/Documents/testData/L6-test.DAT"           #Hi Charlotte, so this is my first attempt at video. this line points to file 
+fname = "E:/Projects/debug/Gunjan/L15_200-1200snapped.DAT"
 # title of output file
-outname = "/Users/juan/Documents/testData/L6-test-CC.DAT"     #this is the output file name
+outname = "E:/Projects/debug/Gunjan/L15_200-1200snapped-CC.DAT"
 # load the data file
 patch = DCIP.loadDias(fname)
 # create simpeg survey Object

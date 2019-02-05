@@ -55,6 +55,7 @@ class baseKernel(object):
             tmp4 = np.reshape(tmp4, (1, self.filtershape.size))
             knew = (np.matmul(tmp1, tmp2) +
                     np.matmul(tmp3, (tmp4 * (self.filtershape.size + 3))))
+            print(knew)
             btmp = np.zeros((self.filtershape.size + 2,
                              self.filtershape.size))  # create zero matrix
             shape_knew = knew.shape
@@ -520,7 +521,7 @@ class ensembleKernal(baseKernel):
 def getFFT(signal):
     """
        :rtype numpy array
-       :return: frequeny response of the filter kernal
+       :return: fft of the filter kernal
     """
     v_fft = fftpack.fft(signal)
     return v_fft[0:int(v_fft.size / 2 - 1)] / np.max(v_fft)
@@ -541,6 +542,11 @@ def getCrossCorrelation(signal1, signal2):
     return x_corr / np.max(np.abs(x_corr))
 
 
+def getCoherence(signal1, signal2, sample_rate):
+    f, coherence = signal.coherence(signal1, signal2, sample_rate, nperseg=1024)
+    return f, coherence
+
+
 def getSpectralDensity(signal):
     """
        X_d(f)X_d^*(f)
@@ -548,7 +554,8 @@ def getSpectralDensity(signal):
     signal_f = fftpack.fft(signal)
     signal_f_conj = np.conjugate(signal_f)
     S_xx = signal_f * signal_f_conj
-    return S_xx[0:int(S_xx.size / 2 - 1)] / np.max(np.abs(S_xx))
+    # return S_xx[0:int(S_xx.size / 2 - 1)] / np.max(np.abs(S_xx))
+    return S_xx
 
 
 def getPhaseResponse(signal):
@@ -797,6 +804,7 @@ def createBruteStackWindow(num_points):
 
     return f1
 
+
 def createMexHatWavelet(num_points, a):
     return signal.ricker(num_points, a)
 
@@ -923,7 +931,6 @@ def loadDias(fileName):
     currRdg = 0
     for i, line in enumerate(text_file):
         if i == 4:
-            print(line)
             Varinfo = line.split()
             header5 = line
             # print(Varinfo)
@@ -1045,6 +1052,10 @@ class JvoltDipole:
         self.Rx2Elev = float(VoltDpinfo.Rx2Elev)
         self.coupling = float(VoltDpinfo.Coupling)
         self.K = float(VoltDpinfo.k)
+        try:
+            self.xcorr = VoltDpinfo.Xcorr
+        except:
+            self.xcorr = -99.0
         self.eta = None
         self.c = None
         self.tau = None
@@ -1161,6 +1172,7 @@ class JvoltDipole:
             gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
         except ZeroDivisionError:
             gf = 0.0
+
         # print("Vp: {0}".format(self.Vp))
         rho = (self.Vp / Idp.In) * 2 * np.pi * gf
         self.Rho = rho
@@ -1176,8 +1188,9 @@ class Jreading:
     def __init__(self, mem):
         self.MemNumber = mem
         self.Vdp = []
-    # method for adding voltage dipoles
+        self.win_widths = []
 
+    # method for adding voltage dipoles
     def addVoltageDipole(self, JVdp):
         self.Vdp.append(JVdp)
 
@@ -1229,25 +1242,29 @@ class Jpatch:
             self.window_width[i] = (self.window_end[i] -
                                     self.window_start[i])
 
-    def writeColeColeDat(self, eta, tau, c, error, indicies, outname, start_time, end_time):
+    def assignWindowWidthsToDipoles(self):
+        """
+        assigns widths of windows of Vs decay to each dipole
+
+        """
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            self.readings[k].win_width = self.window_width
+
+    def rejectByVsError(self):
+        num_rdg = len(self.readings)
+        for rdg in range(num_rdg):
+            num_dipole = len(self.readings[rdg].Vdp)
+            for dp in range(num_dipole):
+                if self.readings[rdg].Vdp[dp].Mx_err == -99.9:
+                        self.readings[rdg].Vdp[dp].flagMx = "Reject"
+
+    def writeColeColeSEDat(self, outname, start_time, end_time):
         """
         Writes Cole-Cole data from stretched exponential to file for DiasQC
         """
-        for idx in range(indicies.shape[0]):
-            rdg = indicies[idx, 0]
-            dp = indicies[idx, 1]
-            self.readings[rdg].Vdp[dp].c = c[idx]
-            self.readings[rdg].Vdp[dp].eta = eta[idx]
-            self.readings[rdg].Vdp[dp].tau = tau[idx]
-            if error[idx] == -99.9:
-                self.readings[rdg].Vdp[dp].Mx_err = error[idx]
-                self.readings[rdg].Vdp[dp].flagMx = "Reject"
-            else:
-                self.readings[rdg].Vdp[dp].Mx_err = error[idx] * 100
-                self.readings[rdg].Vdp[dp].flagMx = "Accept"
-
         out_file = open(outname, "w+")
-        format_jup = '%6s %8s %8s %8i %13s %12.3f %12.3f %12.3f %12.0f %12.0f %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14.1f %10.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12s %14.3f %14.3f %11.0f %13s %8.3f %8.3f %8s %12.3e %12.3e %10.2f '
+        format_jup = '%6s %8s %8s %8i %13s %12.3f %12.3f %12.3f %12.0f %12.0f %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14.1f %10.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12s %14.3f %14.3f %11.0f %13s %8.3f %8.3f %8s %12.3e %12.3e %10.2f '
         # write the headers
         for i in range(len(self.headers)):
             if i == 2:
@@ -1308,6 +1325,110 @@ class Jpatch:
                                              self.readings[rec].Vdp[dp].Rx2y,
                                              0.0,
                                              self.readings[rec].Vdp[dp].Sp,
+                                             self.readings[rec].Vdp[dp].xcorr,
+                                             self.readings[rec].Vdp[dp].Vp,
+                                             self.readings[rec].Vdp[dp].Vp_err,
+                                             self.readings[rec].Idp.In,
+                                             self.readings[rec].Idp.In_err,
+                                             self.readings[rec].Vdp[dp].calcRho(self.readings[rec].Idp),
+                                             self.readings[rec].Vdp[dp].flagRho,
+                                             self.readings[rec].Vdp[dp].calcGeoFactor(self.readings[rec].Idp),
+                                             self.readings[rec].Vdp[dp].coupling,
+                                             self.readings[rec].Vdp[dp].Stack,
+                                             self.readings[rec].Vdp[dp].TimeBase,
+                                             self.readings[rec].Vdp[dp].Mx,
+                                             self.readings[rec].Vdp[dp].Mx_err,
+                                             self.readings[rec].Vdp[dp].flagMx,
+                                             cole_con,
+                                             cole_tau,
+                                             cole_eta))
+                for win in range(self.readings[rec].Vdp[dp].Vs.size):
+                    if win < (self.readings[rec].Vdp[dp].Vs.size - 1):
+                        out_file.write('%12.4f' % (self.readings[rec].Vdp[dp].Vs[win]))
+                    else:
+                        out_file.write('%12.4f\n' % (self.readings[rec].Vdp[dp].Vs[win]))
+
+    def writeColeColeDat(self, eta, tau, c,
+                         error, indicies, outname, start_time, end_time):
+        """
+        Writes Cole-Cole data from stretched exponential to file for DiasQC
+        """
+        for idx in range(indicies.shape[0]):
+            rdg = indicies[idx, 0]
+            dp = indicies[idx, 1]
+            self.readings[rdg].Vdp[dp].c = c[idx]
+            self.readings[rdg].Vdp[dp].eta = eta[idx]
+            self.readings[rdg].Vdp[dp].tau = tau[idx]
+            if error[idx] == -99.9:
+                self.readings[rdg].Vdp[dp].Mx_err = error[idx]
+                self.readings[rdg].Vdp[dp].flagMx = "Reject"
+            else:
+                self.readings[rdg].Vdp[dp].Mx_err = error[idx]
+                self.readings[rdg].Vdp[dp].flagMx = "Accept"
+
+        out_file = open(outname, "w+")
+        format_jup = '%6s %8s %8s %8i %13s %12.3f %12.3f %12.3f %12.0f %12.0f %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14s %12.3f %12.3f %12.3f %12.0f %12.0f %14.1f %10.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12s %14.3f %14.3f %11.0f %13s %8.3f %8.3f %8s %12.3e %12.3e %10.2f '
+        # write the headers
+        for i in range(len(self.headers)):
+            if i == 2:
+                broken = self.headers[2].split()
+                self.headers[i] = broken[0] + " " + broken[1] + " - " + str(int(start_time)) + ":" + str(int(end_time)) + "(ms)\n"
+                out_file.write('%s' % self.headers[i])
+            elif i < (len(self.headers) - 1):
+                out_file.write('%s' % self.headers[i])
+            else:
+                # fix headers
+                hdr_temp = self.headers[i].split("Vs01")
+                self.headers[i] = hdr_temp[0] + "   C          Tau          M         Vs01" + hdr_temp[1]
+                out_file.write('%s' % self.headers[i])
+
+        for rec in range(len(self.readings)):
+            num_dipole = len(self.readings[rec].Vdp)
+            for dp in range(num_dipole):
+                if self.readings[rec].Vdp[dp].c is None:
+                    cole_con = -99.9
+                    cole_tau = -99.9
+                    cole_eta = -99.9
+                else:
+                    cole_con = self.readings[rec].Vdp[dp].c
+                    cole_tau = self.readings[rec].Vdp[dp].tau
+                    cole_eta = self.readings[rec].Vdp[dp].eta
+                if np.abs(self.readings[rec].Vdp[dp].Mx_err) > 999.0:
+                    self.readings[rec].Vdp[dp].Mx_err = -99.9
+                    self.readings[rec].Vdp[dp].flagMx = "Reject"
+                if np.abs(self.readings[rec].Vdp[dp].Mx) > 999.0:
+                    self.readings[rec].Vdp[dp].Mx = -99.9
+                    self.readings[rec].Vdp[dp].flagMx = "Reject"
+                out_file.write(format_jup % (str(self.readings[rec].Vdp[dp].reading),
+                                             str(self.readings[rec].Vdp[dp].dipole),
+                                             str(self.readings[rec].Vdp[dp].status),
+                                             int(self.readings[rec].Vdp[dp].getAseperation()),
+                                             self.readings[rec].Idp.Tx1File,
+                                             self.readings[rec].Idp.Tx1East,
+                                             self.readings[rec].Idp.Tx1North,
+                                             self.readings[rec].Idp.Tx1Elev,
+                                             self.readings[rec].Idp.Tx1x,
+                                             self.readings[rec].Idp.Tx1y,
+                                             self.readings[rec].Idp.Tx2East,
+                                             self.readings[rec].Idp.Tx2North,
+                                             self.readings[rec].Idp.Tx2Elev,
+                                             self.readings[rec].Idp.Tx2x,
+                                             self.readings[rec].Idp.Tx2y,
+                                             self.readings[rec].Vdp[dp].Rx1File,
+                                             self.readings[rec].Vdp[dp].Rx1East,
+                                             self.readings[rec].Vdp[dp].Rx1North,
+                                             self.readings[rec].Vdp[dp].Rx1Elev,
+                                             self.readings[rec].Vdp[dp].Rx1x,
+                                             self.readings[rec].Vdp[dp].Rx1y,
+                                             self.readings[rec].Vdp[dp].Rx2File,
+                                             self.readings[rec].Vdp[dp].Rx2East,
+                                             self.readings[rec].Vdp[dp].Rx2North,
+                                             self.readings[rec].Vdp[dp].Rx2Elev,
+                                             self.readings[rec].Vdp[dp].Rx2x,
+                                             self.readings[rec].Vdp[dp].Rx2y,
+                                             0.0,
+                                             self.readings[rec].Vdp[dp].Sp,
+                                             self.readings[rec].Vdp[dp].xcorr,
                                              self.readings[rec].Vdp[dp].Vp,
                                              self.readings[rec].Vdp[dp].Vp_err,
                                              self.readings[rec].Idp.In,
@@ -1354,6 +1475,96 @@ class Jpatch:
 
         return np.vstack(resistivity_list)
 
+    def getFrequencyComponent(self, reject="Rho"):
+        """
+        Exports all the frequency component data
+
+        Output:
+        numpy array [value]
+
+        """
+        c_list = []
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if reject is "Rho":
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        c_list.append(self.readings[k].Vdp[j].c)
+                elif reject is "Mx":
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        c_list.append(self.readings[k].Vdp[j].c)
+
+        return np.vstack(c_list)
+
+    def getTimeConstants(self, reject="Rho"):
+        """
+        Exports all the time constant data
+
+        Output:
+        numpy array [value]
+
+        """
+        tau_list = []
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if reject is "Rho":
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        tau_list.append(self.readings[k].Vdp[j].tau)
+                elif reject is "Mx":
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        tau_list.append(self.readings[k].Vdp[j].tau)
+
+        return np.vstack(tau_list)
+
+    def getColeColeMx(self, reject="Rho"):
+        """
+        Exports all the eta data
+
+        Output:
+        numpy array [value]
+
+        """
+        eta_list = []
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if reject is "Rho":
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        eta_list.append(self.readings[k].Vdp[j].eta)
+                elif reject is "Mx":
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        eta_list.append(self.readings[k].Vdp[j].eta)
+
+        return np.vstack(eta_list)
+
+    def getVsErrors(self, reject=None):
+        """
+        Exports all the eta data
+
+        Output:
+        numpy array [value]
+
+        """
+        error_list = []
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if reject is "Rho":
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        error_list.append(self.readings[k].Vdp[j].Mx_err)
+                elif reject is "Mx":
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        error_list.append(self.readings[k].Vdp[j].Mx_err)
+                else:
+                    error_list.append(self.readings[k].Vdp[j].Mx_err)
+
+        return np.vstack(error_list)
+
     def getActiveIndicies(self, reject=None):
         """
         exports an array containing index of each available dipole
@@ -1396,7 +1607,10 @@ class Jpatch:
                 if (self.readings[k].Vdp[j].flagRho == "Accept"):
                     # k_a = self.readings[k].Vdp[j].K
                     k_a = self.readings[k].Vdp[j].calcGeoFactor(self.readings[k].Idp)
-                    k_list.append(1 / k_a)
+                    try:
+                        k_list.append(1 / k_a)
+                    except ZeroDivisionError:
+                        k_list.append(0);
         return np.asarray(k_list)
 
     def getVoltages(self):
@@ -1555,6 +1769,20 @@ class Jpatch:
             dipoles[rx, :] = dipole_list[rx]
         return dipoles
 
+    def getNumberOfDataPoints(self, active=False):
+        """
+        returns number of dipoles in the dataset
+        """
+        num_rdg = len(self.readings)
+        count = 0
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                # if active:
+                #     if self.readings[k].Vdp[j].flagRho
+                count += 1
+        return count
+
     def createDcSurvey(self, data_type, ip_type=None):
         """
         Loads a dias data file to a SimPEG "srcList" class
@@ -1673,6 +1901,10 @@ class Jreadtxtline:
         self.Vs = []
         for n in range(len(hdrLine)):
             if hdrLine[n].find("Vs") == 0:
-                self.Vs.append(float(dataLine[n]))
+                try:
+                    self.Vs.append(float(dataLine[n]))
+                except ValueError:
+                    self.Vs.append(float(-99.9))
+
             else:
                 setattr(self, hdrLine[n], dataLine[n])

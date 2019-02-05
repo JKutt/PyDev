@@ -1,38 +1,40 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import JDataObject as Jdata
+import DCIPtools as DCIP
 import pylab as plt
 from scipy.interpolate import griddata
 
 ################################################################
 # define the file required for import
-fileName = "/Users/juan/Documents/testData/DAT_B.DAT"
-
+fileName = "/Users/juan/Documents/testData/L3100_Forward_100m-claim7221.DAT"
 unitType = "appResistivity"
 # unitType = "appChareability"
 xp = []
 yp = []
 val = []
 val2 = []
-Nlevel = ["N = 1", "N = 2", "N = 3", "N = 4", "N = 5", "N = 6", "N = 7"]
-z_n = [-100, -200, -300, -400, -500, -600, -700]
+maxN = 9
+Nlevel = ["N = 1", "N = 2", "N = 3", "N = 4", "N = 5", "N = 6", "N = 7", "N = 8", "N = 9"]
+# z_n = [-50, -75, -100, -125, -150, -175, -200]
+z_n = -30.0 * np.arange(1, maxN + 1) - 50
 vmin_rho, vmax_rho = 10, 4000
-vmin_mx, vmax_mx = 0, 18
+vmin_mx, vmax_mx = 0, 30
 
 # =================================================================
 # Code Start
-patch = Jdata.loadDias(fileName)               # loads data
+patch = DCIP.loadDias(fileName)               # loads data
 # calculated mid-pt data points
 for src in range(len(patch.readings)):
     for rx in range(len(patch.readings[src].Vdp)):
-        xp.append(
-            patch.readings[src].Vdp[rx].getXplotpoint(patch.readings[src].Idp))
-        yp.append(
-            patch.readings[src].Vdp[rx].getZplotpoint(patch.readings[src].Idp))
-        val.append(
-            np.abs(patch.readings[src].Vdp[rx].Rho))
-        val2.append(
-            np.abs(patch.readings[src].Vdp[rx].Mx))
+        if patch.readings[src].Vdp[rx].flagMx == "Accept":
+            xp.append(
+                patch.readings[src].Vdp[rx].getXplotpoint(patch.readings[src].Idp))
+            yp.append(
+                patch.readings[src].Vdp[rx].getZplotpoint(patch.readings[src].Idp))
+            val.append(
+                np.abs(patch.readings[src].Vdp[rx].Rho))
+            val2.append(
+                np.abs(patch.readings[src].Vdp[rx].Mx))
 # convert to numpy
 midx = np.asarray(xp)
 midz = np.asarray(yp)

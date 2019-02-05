@@ -46,13 +46,13 @@ def fit_with_se(time, dobs, eta0=0.01, tau0=0.1, c0=0.5):
 # == Ver. 0.2
 # ============================ User area ==============================
 # set variables
-fname = "E:/Projects/debug/Gunjan/L15_200-1200snapped.DAT"
-outname = "E:/Projects/debug/Gunjan/L15_200-1200snapped-CC.DAT"
+fname = "/Users/juan/Documents/testData/L14_200-1200m_QC.DAT"
+outname = "/Users/juan/Documents/testData/L14_200-1200m_cole-cole.DAT"
 # load the data file
 patch = DCIP.loadDias(fname)
 # set the start and end time of the data that is fed into inversion
-start_time = 0
-end_time = 2000
+start_time = 400
+end_time = 1760
 # make time vector
 times_gates = patch.window_center
 # geometric center equition for time window

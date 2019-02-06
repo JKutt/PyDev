@@ -63,7 +63,7 @@ def fastColeColeSE(reading):
             reading.Vdp[dp].tau = -99.9
             reading.Vdp[dp].eta = -99.9
         else:
-            reading.Vdp[dp].Mx_err = err
+            reading.Vdp[dp].Mx_err = err * 100
             reading.Vdp[dp].c = mopt[1]
             reading.Vdp[dp].tau = mopt[2]
             reading.Vdp[dp].eta = mx_pred

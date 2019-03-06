@@ -4,7 +4,7 @@ from multiprocessing import Pool
 
 # ==================================================================
 #  Global variables
-csv_path = "C:/Users/johnk\Projects/orano-nodebiases.csv"
+csv_path = "C:/Users/johnk/Projects/orano-nodebiases.csv"
 dir_path = "E:/Orano/IPDB/DATA/"
 # ==================================================================
 

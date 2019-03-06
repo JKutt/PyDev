@@ -9,7 +9,7 @@ from scipy.special import factorial
 from SimPEG.EM.Static import DC
 import properties
 ##################################################
-# Playing around
+# DCIPtools Version 0.8   March 2019
 
 
 class baseKernel(object):
@@ -1053,12 +1053,17 @@ class JvoltDipole:
         self.coupling = float(VoltDpinfo.Coupling)
         self.K = float(VoltDpinfo.k)
         try:
-            self.xcorr = VoltDpinfo.Xcorr
+            self.xcorr = float(VoltDpinfo.Xcorr)
         except:
             self.xcorr = -99.0
-        self.eta = None
-        self.c = None
-        self.tau = None
+        try:
+            self.eta = float(VoltDpinfo.M)
+            self.c = float(VoltDpinfo.C)
+            self.tau = float(VoltDpinfo.Tau)
+        except:
+            self.eta = -99.0
+            self.c = -99.0
+            self.tau = -99.0
         self.Sp = float(VoltDpinfo.Sp)
         try:
             self.Vp = float(VoltDpinfo.Vp)
@@ -1078,6 +1083,8 @@ class JvoltDipole:
         self.flagBad = VoltDpinfo.Status
         self.TimeBase = VoltDpinfo.TimeBase
         self.Vs = np.asarray(VoltDpinfo.Vs)
+        self.In = float(VoltDpinfo.In)
+        self.In_err = float(VoltDpinfo.In_err)
 
     def getDipoleStack(self, stack_dir):
         node1_id = self.Rx1File[:2]
@@ -1172,9 +1179,9 @@ class JvoltDipole:
             gf = 1 / ((1 / r1 - 1 / r2) - (1 / r3 - 1 / r4))
         except ZeroDivisionError:
             gf = 0.0
-
+        Vp = self.Vp
         # print("Vp: {0}".format(self.Vp))
-        rho = (self.Vp / Idp.In) * 2 * np.pi * gf
+        rho = (Vp / self.In) * 2 * np.pi * gf
         self.Rho = rho
         return rho
 
@@ -1188,7 +1195,9 @@ class Jreading:
     def __init__(self, mem):
         self.MemNumber = mem
         self.Vdp = []
-        self.win_widths = []
+        self.win_width = []
+        self.win_start = []
+        self.win_end = []
 
     # method for adding voltage dipoles
     def addVoltageDipole(self, JVdp):
@@ -1250,6 +1259,8 @@ class Jpatch:
         num_rdg = len(self.readings)
         for k in range(num_rdg):
             self.readings[k].win_width = self.window_width
+            self.readings[k].win_start = self.window_start
+            self.readings[k].win_end = self.window_end
 
     def rejectByVsError(self):
         num_rdg = len(self.readings)
@@ -1324,12 +1335,12 @@ class Jpatch:
                                              self.readings[rec].Vdp[dp].Rx2x,
                                              self.readings[rec].Vdp[dp].Rx2y,
                                              0.0,
-                                             self.readings[rec].Vdp[dp].Sp,
                                              self.readings[rec].Vdp[dp].xcorr,
+                                             self.readings[rec].Vdp[dp].Sp,
                                              self.readings[rec].Vdp[dp].Vp,
                                              self.readings[rec].Vdp[dp].Vp_err,
-                                             self.readings[rec].Idp.In,
-                                             self.readings[rec].Idp.In_err,
+                                             self.readings[rec].Vdp[dp].In,
+                                             self.readings[rec].Vdp[dp].In_err,
                                              self.readings[rec].Vdp[dp].calcRho(self.readings[rec].Idp),
                                              self.readings[rec].Vdp[dp].flagRho,
                                              self.readings[rec].Vdp[dp].calcGeoFactor(self.readings[rec].Idp),
@@ -1427,12 +1438,12 @@ class Jpatch:
                                              self.readings[rec].Vdp[dp].Rx2x,
                                              self.readings[rec].Vdp[dp].Rx2y,
                                              0.0,
-                                             self.readings[rec].Vdp[dp].Sp,
                                              self.readings[rec].Vdp[dp].xcorr,
+                                             self.readings[rec].Vdp[dp].Sp,
                                              self.readings[rec].Vdp[dp].Vp,
                                              self.readings[rec].Vdp[dp].Vp_err,
-                                             self.readings[rec].Idp.In,
-                                             self.readings[rec].Idp.In_err,
+                                             self.readings[rec].Vdp[dp].In,
+                                             self.readings[rec].Vdp[dp].In_err,
                                              self.readings[rec].Vdp[dp].calcRho(self.readings[rec].Idp),
                                              self.readings[rec].Vdp[dp].flagRho,
                                              self.readings[rec].Vdp[dp].calcGeoFactor(self.readings[rec].Idp),
@@ -1627,9 +1638,7 @@ class Jpatch:
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
                 if self.readings[k].Vdp[j].flagMx == "Accept":
-                    Vp = np.abs(self.readings[k].Vdp[j].Vp)
-                    if self.readings[k].Vdp[j].K < 0:
-                        Vp = Vp * -1
+                    Vp = self.readings[k].Vdp[j].Vp
                     k_a = Vp
                     k_list.append(k_a)
         return np.asarray(k_list)
@@ -1651,7 +1660,7 @@ class Jpatch:
                 if self.readings[k].Vdp[j].flagMx == "Accept":
                     vs = np.sum(self.readings[k].Vdp[j].Vs)
                     Vs = self.readings[k].Vdp[j].Vs
-                    Vp = np.abs(self.readings[k].Vdp[j].Vp)
+                    Vp = self.readings[k].Vdp[j].Vp
                     mx_a = (self.readings[k].Vdp[j].Mx * (self.readings[k].Vdp[j].Vp / 1e3))
                     if vs < 0 and self.readings[k].Vdp[j].Vp < 0:
                         Vp = np.abs(self.readings[k].Vdp[j].Vp)
@@ -1661,9 +1670,7 @@ class Jpatch:
                         cnt = cnt + 1
                         mx_a = (mx_a * -1) / (Vp / 1e3)
                     else:
-                        Vp = np.abs(self.readings[k].Vdp[j].Vp)
-                        if self.readings[k].Vdp[j].K < 0:
-                            Vp = Vp * -1
+                        Vp = self.readings[k].Vdp[j].Vp
                         Vs = self.readings[k].Vdp[j].Vs
                         cnt = cnt + 1
                         mx_a = (mx_a) / (Vp / 1e3)
@@ -1841,9 +1848,7 @@ class Jpatch:
                                       self.readings[k].Vdp[i].Rx2North,
                                       self.readings[k].Vdp[i].Rx2Elev - doff]
                                       # 0]
-                        Vp = np.abs(self.readings[k].Vdp[i].Vp)
-                        if self.readings[k].Vdp[i].K < 0:
-                            Vp = Vp * -1
+                        Vp = self.readings[k].Vdp[i].Vp
                         data.append(Vp / self.readings[k].Idp.In)
                         d_weights.append((self.readings[k].Vdp[i].Vp_err +
                                           self.readings[k].Idp.In_err) / 100.)
@@ -1859,17 +1864,10 @@ class Jpatch:
                         if ip_type is None:
                             data.append(self.readings[k].Vdp[i].Mx)
                         elif ip_type == "decay":
-                            Vp = np.abs(self.readings[k].Vdp[i].Vp)
-                            vs_ = np.sum(self.readings[k].Vdp[i].Vs)
-                            # if Vp < 0 and vs_ < 0:
-                            #     Vs = self.readings[k].Vdp[i].Vs * -1
+                            Vp = self.readings[k].Vdp[i].Vp
                             data.append(self.readings[k].Vdp[i].Vs)
-                             # /
-                                        # self.readings[k].Idp.In)
                         else:
                             Vp = self.readings[k].Vdp[i].Vp
-                            if self.readings[k].Vdp[i].K < 0:
-                                Vp = Vp * -1
                             data.append(self.readings[k].Vdp[i].Mx *
                                         ((Vp / 1e3) / self.readings[k].Idp.In))
 

@@ -6,6 +6,9 @@ import DCIPtools as DCIP
 from multiprocessing import Pool
 
 
+start_time = 400
+end_time = 1760
+
 def fit_with_se(time, dobs, eta0=0.01, tau0=0.1, c0=0.5):
     siginf = 1.
     wires = Maps.Wires(('eta', 1), ('tau', 1), ('c', 1))
@@ -45,16 +48,19 @@ def fit_with_se(time, dobs, eta0=0.01, tau0=0.1, c0=0.5):
 
 def fastColeColeSE(reading):
     for dp in range(len(reading.Vdp)):
-        # if patch.readings[rdg].Vdp[dp].flagMx == "Accept":
-        # try:
         Vp = reading.Vdp[dp].Vp
         Vs = reading.Vdp[dp].Vs
+        # geometric center equition for time window
+        times = np.sqrt(reading.win_start * reading.win_end)
+        # get indicies
+        # tinds = end_time > times > start_time
+        tinds = np.where(np.logical_and(times>=start_time, times<=end_time))
         # times_gates = patch.window_center
         mopt, dobs, dpred = fit_with_se(times[tinds] * 1e-3, Vs[tinds] / Vp)
         mx_pred = np.sum(dpred * reading.win_width[tinds]) / np.sum(reading.win_width[tinds]) * 1e3
         mx_obs = np.sum(dobs * reading.win_width[tinds]) / np.sum(reading.win_width[tinds]) * 1e3
         reading.Vdp[dp].Mx = mx_obs
-        err = np.sqrt(np.sum((dobs - dpred)**2)) / dobs.size * 1e3
+        err = np.sqrt(np.sum((dobs - dpred)**2) / dobs.size * 1e3)
         np.abs(err / mx_obs) * 100
         print("eta: {0}, c: {1}, tau: {2} error eta: {3} : Mx: {4}".format(mx_pred, mopt[1], mopt[2], err, mx_obs))
         if np.isnan(err):
@@ -67,39 +73,43 @@ def fastColeColeSE(reading):
             reading.Vdp[dp].c = mopt[1]
             reading.Vdp[dp].tau = mopt[2]
             reading.Vdp[dp].eta = mx_pred
+    return reading
 
 
 if __name__ == '__main__':
     # ============================ User area ==============================
+    # ver 0.3
     # set variables
-    fname = "/Users/juan/Documents/testData/L14_200-1200m_QC-trim.DAT"
-    outname = "/Users/juan/Documents/testData/L14_200-1200m_cole-cole.DAT"
+    fname = "E:/Projects/debug/Mark/MMG_100m.DAT"
+    outname = "E:/Projects/debug/Mark/MMG_100m-JK2.DAT"
     # load the data file
     patch = DCIP.loadDias(fname)
     # set the start and end time of the data that is fed into inversion
-    start_time = 400
-    end_time = 1760
     # make time vector
     times_gates = patch.window_center
-    # geometric center equition for time window
-    times = np.sqrt(patch.window_start * patch.window_end)
-    # get indicies
-    tinds = times > start_time
+    # # geometric center equition for time window
+    # times = np.sqrt(patch.window_start * patch.window_end)
+    # # get indicies
+    # tinds = times > start_time
     # assign the Vs window widths to each dipole
     patch.assignWindowWidthsToDipoles()
     # Parrallelized Vs curve fitting
     pool = Pool()
     # run the inversion scheme
-    pool.map(fastColeColeSE, patch.readings)
+    pro = pool.map(fastColeColeSE, patch.readings)
+    # for rdg in range(len(patch.readings)):
+    #     fastColeColeSE(patch.readings[rdg])
     print("done.... go home!")
+    patch.readings = pro
     # Figure out the times
-    start_inds = (patch.window_start > start_time)
-    stop_inds = (patch.window_end < end_time)
+    start_inds = (patch.window_start >= start_time)
+    stop_inds = (patch.window_end <= end_time)
     strt_time = patch.window_start[start_inds]
     stop_time = patch.window_end[stop_inds]
     # reject the outlier errors
     patch.rejectByVsError()
     # write the data to file
+    print(strt_time)
     patch.writeColeColeSEDat(outname, strt_time[0],
                              stop_time[stop_time.size - 1])
     # get variable to plot
@@ -113,14 +123,17 @@ if __name__ == '__main__':
     eta_ = patch.getColeColeMx(reject="Mx")
     tau_ = patch.getTimeConstants(reject="Mx")
     c_ = patch.getFrequencyComponent(reject="Mx")
-    fig, axs = plt.subplots(4, 1)
-    properties = [Rho, eta_,
-                  tau_, c_]
-    titles = ["$\\rho_{a}$", "$\\eta_{a}$", "$\\tau_{a}$", "$c_{a}$"]
-    colors = ['#1f77b4', 'seagreen', 'crimson', 'gold']
-    for i, ax in enumerate(axs):
-        out = ax.hist(np.log10(properties[i]), bins=50, color=colors[i])
-        ax.set_title(titles[i])
-        ax.set_xticklabels([("%.1f") % (10**tick) for tick in ax.get_xticks()])
-    plt.tight_layout()
-    plt.show()
+    try:
+        fig, axs = plt.subplots(4, 1)
+        properties = [Rho, eta_,
+                      tau_, c_]
+        titles = ["$\\rho_{a}$", "$\\eta_{a}$", "$\\tau_{a}$", "$c_{a}$"]
+        colors = ['#1f77b4', 'seagreen', 'crimson', 'gold']
+        for i, ax in enumerate(axs):
+            out = ax.hist(np.log10(np.abs(properties[i])), bins=50, color=colors[i])
+            ax.set_title(titles[i])
+            ax.set_xticklabels([("%.1f") % (10**tick) for tick in ax.get_xticks()])
+        plt.tight_layout()
+        plt.show()
+    except:
+        pass

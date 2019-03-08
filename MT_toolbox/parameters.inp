@@ -1,0 +1,27 @@
+<project><# Project related>
+  <station=DEV><# Station Name>
+  <client=DEV_CLIENT><# Client Name>
+  <processor=Hugo Larnier><# Processor name>
+  <folder=/Users/larnier/Documents/dias/mt/output_dev><# folder where files will be written>
+  <type=Z><# site type: E/H: Z, H_z/H: T, E + H_z/H: Full>
+  <output_level=1>
+<data>
+  <ex=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ex8.bin><# Path for Ex>
+  <ey=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ey8.bin><# Path for Ey>
+  <hx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hx8.bin><# Path for Hx>
+  <hy=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hy8.bin><# Path for Hy>
+  <rx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Rx8.bin><# Path for Rx>
+  <ry=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ry8.bin><# Path for Ry>
+<processing_parameters>
+  <tbw=2>
+  <nfft=1024>
+  <overlap=20>
+  <taper=slepian>
+  <index_first_frequency=8>
+  <frequency_increment=2>
+  <nb_increment=4>
+  <length_reduction=2>
+  <nb_reductions=2>
+  <output=dev>
+  <error=jackknife>
+<filtering>

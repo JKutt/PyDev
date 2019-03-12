@@ -16,3 +16,12 @@ def read_binary_file(file_in):
     file_out = np.asarray(file_out)
 
     return file_out
+
+def read_ascii_file(file_in):
+    file_out = []
+    f_in = open(file_in, 'r')
+    lines = f_in.readlines()
+    for line in lines:
+        file_out.append(float(line[:-1]))
+
+    return file_out

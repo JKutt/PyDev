@@ -1,12 +1,17 @@
+from sys import exit, path
+# paths
+path.append('./fortran_f2py')
+#
+
 import io_lib
 import spectrum_lib
 import matplotlib.pylab as plt
 from classes_ts import project, station_mt, step_parameters
 import spectrum_lib
 from argparse import ArgumentParser
-from sys import exit
 import datetime
 import time
+
 
 version = '0.1'
 date_now = datetime.datetime.now()
@@ -66,11 +71,10 @@ if __name__ == '__main__':
             ## Starting spectral analysis
             # Segmentation/tapering
             station.apply_taper(step_param)
-            station.recover_Z(step, project.parameters)
-            station.recover_error(step, project.parameters)
             # Robust regression
+            station.recover_Z(step, project.parameters)
             if step < project.parameters.nb_reductions:
-                print('[INFO] Iteration ' + str(step + 1) + ' done. Reducing base window length to: ' + str(int(step_param.nfft / (project.parameters.length_reduction ** (step + 1)))))
+                print('[INFO] Iteration ' + str(step + 1) + ' done. Reducing base window length to: ' + str(int(step_param.nfft / (project.parameters.length_reduction))))
         print('[INFO] Response function computation done.')
         print('[INFO] Now writing output file.')
-        station.tensor.plot()
+        station.tensor.plot_tensor()

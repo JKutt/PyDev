@@ -6,22 +6,22 @@
   <type=Z><# site type: E/H: Z, H_z/H: T, E + H_z/H: Full>
   <output_level=1>
 <data>
-  <ex=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ex8.bin><# Path for Ex>
-  <ey=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ey8.bin><# Path for Ey>
-  <hx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hx8.bin><# Path for Hx>
-  <hy=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hy8.bin><# Path for Hy>
-  <rx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Rx8.bin><# Path for Rx>
-  <ry=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ry8.bin><# Path for Ry>
+  <ex=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ex3.bin><# Path for Ex>
+  <ey=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ey3.bin><# Path for Ey>
+  <hx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hx3.bin><# Path for Hx>
+  <hy=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hy3.bin><# Path for Hy>
+  <rx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Rx3.bin><# Path for Rx>
+  <ry=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ry3.bin><# Path for Ry>
 <processing_parameters>
   <tbw=2>
   <nfft=1024>
   <overlap=20>
   <taper=slepian>
-  <index_first_frequency=8>
-  <frequency_increment=2>
+  <index_first_frequency=16>
+  <frequency_increment=4>
   <nb_increment=4>
   <length_reduction=2>
-  <nb_reductions=2>
+  <nb_reductions=3>
   <output=dev>
   <error=jackknife>
 <filtering>

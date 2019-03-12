@@ -5,6 +5,8 @@ import sys
 import glob
 import io_lib
 from classes_z import Z
+import multiprocessing
+
 
 class project:
 
@@ -98,7 +100,7 @@ class project:
             print('[ERROR] Check project type.')
             var_ex = 1
 
-        if not self.parameters.taper in ['slepian']:
+        if not self.parameters.taper in ['slepian', 'hamming', 'window_tukey', 'null']:
             print('[ERROR] Check taper type.')
             var_ex = 1
 
@@ -181,6 +183,10 @@ class station_mt:
         self.tensor.Z = np.asarray([[[np.complex(0, 0), np.complex(0, 0)]
                                      for f in range(len(self.tensor.frequencies))]
                                      for channel in range(len(self.output))])
+
+        self.tensor.error = np.asarray([[[np.complex(0, 0), np.complex(0, 0)]
+                                          for f in range(len(self.tensor.frequencies))]
+                                          for channel in range(len(self.output))])
         if self.output_level > 1:
             print('Analyzed frequencies:')
             for i, f in zip(range(len(self.tensor.frequencies)), self.tensor.frequencies):
@@ -281,30 +287,49 @@ class station_mt:
 
 
     def recover_Z(self, step, param):
+
+        ### PARALLEL
+        # Using a pool of worker to work on each frequency
+        max_number_processes = multiprocessing.cpu_count()
+        #pool = multiprocessing.Pool(max_number_processes - 20)
+        pool = multiprocessing.Pool(2)
+        r = []
+        print("\tStarting workers pool: " + str(2) + " workers working on robust regressions.")
+        for ind in range(param.nb_increment):
+            #res = pool.map(datlib.read_node_library, )
+            index = param.index_first_frequency + ind * param.frequency_increment
+            for channel in range(len(self.output)):
+                r.append(pool.apply_async(spectrum_lib.robust_regression,
+                                            (self.output[channel].get_fourier_index(index),
+                                            [self.input[i].get_fourier_index(index) for i in range(len(self.input))],
+                                            [self.ref[i].get_fourier_index(index) for i in range(len(self.ref))],
+                                            self.output_level)))
+        pool.close()
+        pool.join()
+
+        # Getting results from multiprocessing
+        for ind in range(param.nb_increment):
+            for channel in range(len(self.output)):
+                tmp = r[ind * len(self.output) + channel].get()
+                self.tensor.Z[channel, step * param.nb_increment + ind, :] = tmp[0]
+                self.tensor.error[channel, step * param.nb_increment + ind, :] = tmp[1]
+
+        """
+        ### SERIAL
         for ind in range(param.nb_increment):
             print('\t[INFO] Frequency increment ' + str(ind + 1) + '/' + str(param.nb_increment))
             index = param.index_first_frequency + ind * param.frequency_increment
             for channel in range(len(self.output)):
-                self.tensor.Z[channel, step * param.nb_increment + ind, :] = spectrum_lib.robust_regression(
+                #self.tensor.Z[channel, step * param.nb_increment + ind, :], \
+                #self.tensor.error[channel, step * param.nb_increment + ind, :] =
+                self.tensor.Z[channel, step * param.nb_increment + ind, :], \
+                self.tensor.error[channel, step * param.nb_increment + ind, :] = spectrum_lib.robust_regression(
                                                 self.output[channel].get_fourier_index(index),
                                                 [self.input[i].get_fourier_index(index) for i in range(len(self.input))],
                                                 [self.ref[i].get_fourier_index(index) for i in range(len(self.ref))],
                                                 self.output_level
                                                                                                             )
-
-
-    def recover_error(self, step, param):
-        for ind in range(param.nb_increment):
-            print('\t[INFO] Frequency increment ' + str(ind + 1) + '/' + str(param.nb_increment))
-            index = param.index_first_frequency + ind * param.frequency_increment
-            for channel in range(len(self.output)):
-                self.tensor.error[channel, step * param.nb_increment + ind, :] = spectrum_lib.jackknife(
-                                                self.output[channel].get_fourier_index(index),
-                                                [self.input[i].get_fourier_index(index) for i in range(len(self.input))],
-                                                [self.ref[i].get_fourier_index(index) for i in range(len(self.ref))],
-                                                self.output_level
-                                                                                                            )
-
+        """
     def rotate_station(self, angle):
         print('TODO')
 
@@ -421,19 +446,20 @@ class time_serie:
     def load_data(self):
         try:
             self.data=io_lib.read_binary_file(self.file_name)
+            #self.data=io_lib.read_ascii_file(self.file_name)
         except:
             print('[ERROR] Something went wrong while loading the file ' + self.file_name)
             sys.exit()
 
     def segment_data(self, parameters):
-        n_overlap = int(np.floor(parameters.nfft * parameters.overlap / 100))
-        n_windows = int(np.floor(len(self.data) / n_overlap))
+        self.segments = []
+        n_overlap = int(np.floor(parameters.nfft - parameters.nfft * parameters.overlap / 100))
+        n_windows = int(np.floor(len(self.data) / n_overlap)) - 1
 
         for ind in range(n_windows):
             self.segments.append(self.data[n_overlap * ind:n_overlap * ind + parameters.nfft])
 
     def taper_segments(self, parameters):
-
         if len(self.segments):
             taper = spectrum_lib.get_taper(parameters.nfft, parameters.taper, parameters.tbw)
             for i in range(len(self.segments)):
@@ -442,6 +468,7 @@ class time_serie:
             print('[WARNING] Segmentation hasn\'t been done yet. Use self.segment_data(self, parameters).')
 
     def get_fft_segments(self):
+        self.segments_fft = []
         for i in range(len(self.segments)):
             self.segments_fft.append(np.fft.fft(self.segments[i]))
 

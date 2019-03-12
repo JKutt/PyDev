@@ -264,6 +264,7 @@ class station_mt:
 
 
     def apply_taper(self, param):
+        print("here")
         for i in range(len(self.output)):
             self.output[i].segment_data(param)
             self.output[i].taper_segments(param)

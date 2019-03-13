@@ -60,6 +60,7 @@ if __name__ == '__main__':
         station.plot()
         exit()
 
+    regression_time = time.time()
     if args.compute:
         print('[INFO] Now starting computation of response functions.')
         print('       According to the given parameters, I have ' + str(project.parameters.nb_reductions + 1) + ' iterations to perform.')
@@ -76,5 +77,7 @@ if __name__ == '__main__':
             if step < project.parameters.nb_reductions:
                 print('[INFO] Iteration ' + str(step + 1) + ' done. Reducing base window length to: ' + str(int(step_param.nfft / (project.parameters.length_reduction))))
         print('[INFO] Response function computation done.')
+        print("[INFO_TIME] Elapsed time for robust regression: " + str(time.time() - regression_time) + ' seconds.')
         print('[INFO] Now writing output file.')
         station.tensor.plot_tensor()
+        station.tensor.plot_tensor_res_phase()

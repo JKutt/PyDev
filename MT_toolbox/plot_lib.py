@@ -28,7 +28,7 @@ def plot_tensor(frequencies, Z, error):
     plt.show()
 
 
-def plot_tensor_res_phase(frequencies, Z, error):
+def plot_tensor_res_phase(frequencies, Z, res_error, phase_error):
     """
 
     # Plot tensor RES and PHASE: NEED TO DERIVE ERROR
@@ -49,8 +49,12 @@ def plot_tensor_res_phase(frequencies, Z, error):
         ax[channel][0].set_ylabel('Module (mV/km/nT)')
         ax[channel][1].set_xlabel('Frequency (Hz)')
         ax[channel][1].set_ylabel('Phase (Rad)')
-        ax[channel][0].plot(frequencies, [np.abs(Z[channel][f][0]) ** 2 / 5. / frequencies[f] for f in range(len(frequencies))], 'ro')
-        ax[channel][0].plot(frequencies, [np.abs(Z[channel][f][1]) ** 2 / 5. / frequencies[f] for f in range(len(frequencies))], 'bo')
-        ax[channel][1].errorbar(frequencies, [np.angle(Z[channel][f][0]) for f in range(len(frequencies))], yerr=[np.angle(error[channel][f][0]) for f in range(len(frequencies))], fmt='ro')
-        ax[channel][1].errorbar(frequencies, [np.angle(Z[channel][f][1]) for f in range(len(frequencies))], yerr=[np.angle(error[channel][f][1]) for f in range(len(frequencies))], fmt='bo')
+        ax[channel][0].errorbar(frequencies, [np.abs(Z[channel][f][0]) ** 2 / 5. / frequencies[f] for f in range(len(frequencies))],
+                                yerr=[res_error[channel][f][0] for f in range(len(frequencies))], fmt='ro')
+        ax[channel][0].errorbar(frequencies, [np.abs(Z[channel][f][1]) ** 2 / 5. / frequencies[f] for f in range(len(frequencies))],
+                                yerr=[res_error[channel][f][1] for f in range(len(frequencies))], fmt='bo')
+        ax[channel][1].errorbar(frequencies, [np.angle(Z[channel][f][0]) for f in range(len(frequencies))],
+                                yerr=[phase_error[channel][f][1] for f in range(len(frequencies))], fmt='ro')
+        ax[channel][1].errorbar(frequencies, [np.angle(Z[channel][f][1]) for f in range(len(frequencies))],
+                                yerr=[phase_error[channel][f][1] for f in range(len(frequencies))], fmt='bo')
     plt.show()

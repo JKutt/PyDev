@@ -10,6 +10,48 @@ import scipy
 
 np.warnings.filterwarnings('ignore')
 
+def error_on_output_vectorized(G, d, m, w):
+
+
+    error = np.zeros((len(d), 1))
+    error = d - G @ m
+    abs_error = abs(error * np.conjugate(error))
+    abs_error_weighted = abs(error * w @ np.conjugate(error))
+    sum_error = np.dot(np.reshape(abs_error_weighted, (len(error),)), np.conjugate(np.reshape(abs_error_weighted, (len(error),))))
+    return abs_error, sum_error
+
+def organize_matrices_vectorized(output, input, ref, weights):
+    """
+
+    # Return matrices for linear inversion
+    # Input:
+    # output: output channels in transfer function system (ie. for MT, electric field)
+    # input: input channels in transfer function system (ie. for MT, magnetic field)
+    # ref: reference channels in transfer function system (ie. for MT, reference magnetic field)
+    # weights: applied weights to the system
+    # Output:
+    # G: 2xN matrix of the local magnetic field
+    # GR: 2xN matrix of the remote magnetic field
+    # d: 1xN matrix of the electric field
+    # weights_matrix: (NxN) diagonal matrix with weights.
+    """
+
+    n_segments = len(output)
+
+    weights_matrix = np.zeros((n_segments, n_segments))
+    np.fill_diagonal(weights_matrix, weights)
+    G_ = np.asarray(input)
+    G = np.reshape(G_, (G_.shape[0], 2))
+    GR_ = np.asarray(ref)
+    GR = np.reshape(GR_, (GR_.shape[0], 2))
+    d_ = np.asarray(output)
+    d = np.reshape(d_, (d_.shape[0], 1))
+    cm = np.matmul(GR.transpose().conjugate(), np.matmul(weights_matrix, np.matrix(G)))
+    dm = GR.transpose().conjugate() @ weights_matrix @ d
+
+    return G, GR, d, cm, dm, weights_matrix
+
+
 def get_frequencies(sample_freq, param):
     """
 
@@ -79,7 +121,6 @@ def apply_taper(window, taper):
 
 def robust_regression(output, input, ref, output_level):
 
-
     if output_level > 0:
         print('\t[INFO] Starting robust regression. Number of samples: ' + str(int(len(output))))
         s_time = time.time()
@@ -100,7 +141,8 @@ def robust_regression(output, input, ref, output_level):
 
     # Preparing matrices
     s_time = time.time()
-    G, GR, d, cm, dm = libMatrix.prepare_matrices(output, input, ref, weights, len(output))
+    #G, GR, d, cm, dm = libMatrix.prepare_matrices(output, input, ref, weights, len(output))
+    G, GR, d, cm, dm, _ = organize_matrices_vectorized(output, input, ref, weights)
     if output_level > 2:
         print("\t\t\t[INFO_TIME] Elapsed time for matrix organization: " + str(time.time() - s_time) + ' seconds.')
 
@@ -112,7 +154,8 @@ def robust_regression(output, input, ref, output_level):
 
     # Calculting error on output field
     s_time = time.time()
-    abs_error, sum_error = libMatrix.error_on_output(np.asarray(m, order='F').transpose(), d, G, weights, len(output))
+    abs_error, sum_error = error_on_output_vectorized(G, d, m, weights)
+    #abs_error, sum_error = libMatrix.error_on_output(np.asarray(m, order='F').transpose(), d, G, weights, len(output))
     scale = np.median(np.abs(abs_error - np.median(abs_error))) / 0.44845
     if output_level > 2:
         print("\t\t\t[INFO_TIME] Elapsed time for error calculation: " + str(time.time() - s_time) + ' seconds.')
@@ -131,7 +174,8 @@ def robust_regression(output, input, ref, output_level):
 
         # Calculating new solution
         s_time = time.time()
-        G, GR, d, cm, dm = libMatrix.prepare_matrices(output, input, ref, weights, len(output))
+        G, GR, d, cm, dm, _ = organize_matrices_vectorized(output, input, ref, weights)
+        #G, GR, d, cm, dm = libMatrix.prepare_matrices(output, input, ref, weights, len(output))
         if output_level > 2:
             print("\t\t\t[INFO_TIME] Elapsed time for matrix organization: " + str(time.time() - s_time) + ' seconds.')
 
@@ -143,7 +187,8 @@ def robust_regression(output, input, ref, output_level):
 
         # Calculating new scale and new weighted error
         s_time = time.time()
-        abs_error, sum_error = libMatrix.error_on_output(np.asarray(m, order='F').transpose(), d, G, weights, len(output))
+        abs_error, sum_error = error_on_output_vectorized(G, d, m, weights)
+        #abs_error, sum_error = libMatrix.error_on_output(np.asarray(m, order='F').transpose(), d, G, weights, len(output))
         scale = np.median(np.abs(abs_error - np.median(abs_error))) / 0.44845
         if output_level > 2:
             print("\t\t\t[INFO_TIME] Elapsed time for error calculation: " + str(time.time() - s_time) + ' seconds.')
@@ -171,7 +216,8 @@ def robust_regression(output, input, ref, output_level):
     z_jackknife = [[] for n in range(len(output))]
 
     # Using full matrices to derive delete-ones
-    cm_0, d_0 = libMatrix.prepare_tensor_inversion(output, input, ref, weights, len(output))
+    _, _, _, cm_0, d_0, _ = organize_matrices_vectorized(output, input, ref, weights)
+    #cm_0, d_0 = libMatrix.prepare_tensor_inversion(output, input, ref, weights, len(output))
     for n in range(len(output)):
         if output_level > 1:
             print('\t[INFO] Computing jackknife sample ' + str(n + 1) + '/' + str(len(output)))

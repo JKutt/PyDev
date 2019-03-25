@@ -4,12 +4,13 @@
 import numpy as np
 from scipy import fftpack
 # from scipy import sparse
+import matplotlib.pyplot as plt
 from scipy import signal
 from scipy.special import factorial
 from SimPEG.EM.Static import DC
 import properties
 ##################################################
-# DCIPtools Version 0.8   March 2019
+# DCIPtools Version 0.9   March 2019
 
 
 class baseKernel(object):
@@ -1137,11 +1138,121 @@ class JvoltDipole:
         z = -(r / 3.)
         return z
 
+    def calcSensitivity(self, Idp, ne, sw, dx,
+                        sw_search,
+                        ne_search):
+        xa = Idp.Tx2East
+        ya = Idp.Tx2North
+        za = Idp.Tx2Elev
+        xb = Idp.Tx1East
+        yb = Idp.Tx1North
+        zb = Idp.Tx1Elev
+        xm = self.Rx1East
+        ym = self.Rx1North
+        zm = self.Rx1Elev
+        xn = self.Rx2East
+        yn = self.Rx2North
+        zn = self.Rx2Elev
+        X = np.arange(sw[0], ne[0], dx)
+        Y = np.arange(sw[1], ne[1], dx)
+        Z = np.arange(sw[2], ne[2], dx)
+        x, y, z = np.meshgrid(X, Y, Z)
+
+        # compactify the calculation
+        arg1 = (((x - xa) * (x - xm) + (y - ya) * (y - ym) +
+                (z - za) * (z - zm)) *
+                (((x - xa)**2 + (y - ya)**2 + (z - za)**2)**-1.5) *
+                (((x - xm)**2 + (y - ym)**2 + (z - zm)**2)**-1.5))
+        arg2 = (((x - xa) * (x - xn) + (y - ya) * (y - yn) +
+                (z - za) * (z - zn)) *
+                (((x - xa)**2 + (y - ya)**2 + (z - za)**2)**-1.5) *
+                (((x - xn)**2 + (y - yn)**2 + (z - zn)**2)**-1.5))
+        arg3 = (((x - xb) * (x - xm) + (y - yb) * (y - ym) +
+                (z - zb) * (z - zm)) *
+                (((x - xb)**2 + (y - yb)**2 + (z - zb)**2)**-1.5) *
+                (((x - xm)**2 + (y - ym)**2 + (z - zm)**2)**-1.5))
+        arg4 = (((x - xb) * (x - xn) + (y - yb) * (y - yn) +
+                (z - zb) * (z - zn)) *
+                (((x - xb)**2 + (y - yb)**2 + (z - zb)**2)**-1.5) *
+                (((x - xn)**2 + (y - yn)**2 + (z - zn)**2)**-1.5))
+        # evaluate sensitivity equation
+        J = 1 / (4 * np.pi**2) * (arg1 - arg2 - arg3 + arg4)
+
+        # get the span of the most sensitive layer
+        max_J = np.max(J) * 0.51
+        levels = J.shape[2]
+        slices_x = np.zeros((levels, 2))
+        slices_y = np.zeros((levels, 2))
+        for l in range(levels):
+            z = J[:, :, l]
+            a = z > (np.max(z) * 0.51)
+            X_ = x[a]
+            Y_ = y[a]
+            try:
+                slices_x[l, :] = np.asarray([np.max(X_), np.min(X_)])
+                slices_y[l, :] = np.asarray([np.max(Y_), np.min(Y_)])
+            except ValueError:
+                slices_x[l, :] = slices_x[0, :]
+                slices_y[l, :] = slices_y[0, :]
+
+        sbx = [np.max(slices_x[:, 0]), np.min(slices_x[:, 1])]
+        sby = [np.max(slices_y[:, 0]), np.min(slices_y[:, 1])]
+        # determine if it overlaps with the area in question
+        true_x = False
+        true_y = False
+        x_s = sw_search[0]
+        x1_s = ne_search[0]
+        y_s = sw_search[1]
+        y1_s = ne_search[1]
+        if (sbx[1] < x_s < sbx[0]):
+            true_x = True
+        if (sbx[1] < x1_s < sbx[0]):
+            true_x = True
+        if (sby[1] < y_s < sby[0]):
+            true_y = True
+        if (sby[1] < y1_s < sby[0]):
+            true_y = True
+        # print("Max sensitive x comp. {0} - min: {1}".format(sbx[0], sbx[1]))
+        # print("Max search x comp. {0} - min: {1}".format(x1_s, x_s))
+        # print("Max sensitive y comp. {0} - min: {1}".format(sby[0], sby[1]))
+        # print("Max search y comp. {0} - min: {1}".format(y1_s, y_s))
+        # print(true_x, true_y)
+        if true_x and true_y:
+            print("found sensitive dipole")
+            self.flagRho = "Reject"
+            self.flagMx = "Reject"
+
+        return J
+
+    def getDepthPoint2D(self, Idp, direction='x'):
+        z = np.nan
+        if direction is 'x':
+            z = -(abs(Idp.Tx1x - self.Rx1x)) / 2.0
+        elif direction is 'y':
+            z = -(abs(Idp.Tx1y - self.Rx1y)) / 2.0
+        return z
+
+    def getNlevel(self, Idp, a, direction='x'):
+        n = np.nan
+        if direction is 'x':
+            n = (abs(Idp.Tx1x - self.Rx1x)) / a
+        elif direction is 'y':
+            n = -(abs(Idp.Tx1y - self.Rx1y)) / a
+        return n
+
     def getAseperation(self):
         r1 = ((self.Rx1East - self.Rx2East)**2 +
               (self.Rx1North - self.Rx2North)**2 +
               (self.Rx1Elev - self.Rx2Elev)**2)**0.5
         return r1
+
+    def getAseperationLocal(self, direction='x'):
+        a = np.nan
+        if direction is 'x':
+            a = np.abs(self.Rx2x - self.Rx1x)
+        elif direction is 'y':
+            a = np.abs(self.Rx2y - self.Rx1y)
+        return a
 
     def calcGeoFactor(self, Idp):
         r1 = ((self.Rx1East - Idp.Tx1East)**2 +
@@ -1198,6 +1309,9 @@ class Jreading:
         self.win_width = []
         self.win_start = []
         self.win_end = []
+        self.node_db = []
+        self.node_locs = []
+        self.angles = []
 
     # method for adding voltage dipoles
     def addVoltageDipole(self, JVdp):
@@ -1206,6 +1320,48 @@ class Jreading:
     # method for assigning Current dipole
     def addInDipole(self, JIdp):
         self.Idp = JIdp
+
+    # method for creating a node database
+    def createNodeDB(self):
+        nodes = []
+        locs = []
+        for dp in range(len(self.Vdp)):
+            node1_id = self.Vdp[dp].Rx1File[:2]
+            node2_id = self.Vdp[dp].Rx2File[:2]
+            if not node1_id in nodes:
+                nodes.append(node1_id)
+                pos = np.asarray([self.Vdp[dp].Rx1East, self.Vdp[dp].Rx1North])
+                locs.append(pos)
+            if not node2_id in nodes:
+                nodes.append(node2_id)
+                pos = np.asarray([self.Vdp[dp].Rx2East, self.Vdp[dp].Rx2North])
+                locs.append(pos)
+        # assign node database
+        self.node_db = nodes
+        self.node_locs = locs
+
+    # method for getting angles of possible dipole given a spacing
+    def calcAngles(self, min_dipole, max_dipole):
+        # dipoles = [] len(self.node_locs
+        if len(self.node_locs) > 1:
+            points = np.asarray(self.node_locs)
+            for idx in range(len(self.node_locs)):
+                # calculate difference to all points
+                diff = self.node_locs[idx] - points
+                # calculate distances
+                dists = (np.sum(diff**2, axis=1))**0.5
+                for index in range(dists.size):
+                    if min_dipole < dists[index] < max_dipole:
+                        # get components differences
+                        x_diff = diff[index, 0]
+                        y_diff = diff[index, 1]
+                        # calc angle from north
+                        theta = (np.arctan2(x_diff, y_diff)) * 180 / np.pi
+                        if theta < 0:
+                            theta = 360 + theta
+                        self.angles.append(theta)
+        else:
+            print("node locations have not been initiated")
 
 
 class Jpatch:
@@ -1269,6 +1425,47 @@ class Jpatch:
             for dp in range(num_dipole):
                 if self.readings[rdg].Vdp[dp].Mx_err == -99.9:
                         self.readings[rdg].Vdp[dp].flagMx = "Reject"
+
+    def get3Dangles(self, bin_width=20, dipole_max=None, dipole_min=None):
+        dipole_angles = []
+        theta = []
+        cnt = 0
+        if dipole_max is not None:
+            num_rdg = len(self.readings)
+            for rdg in range(num_rdg):
+                # get a node database for a reading
+                self.readings[rdg].createNodeDB()
+                self.readings[rdg].calcAngles(dipole_min, dipole_max)
+                dipole_angles.append(self.readings[rdg].angles)
+                for idx in range(len(dipole_angles[cnt])):
+                    theta.append(dipole_angles[cnt][idx])
+                cnt = cnt + 1
+        else:
+            print("[OUTPUT] - dipole sizes not set")
+        return theta
+
+    # method for making node database for entire project
+    def getNodeDataBase(self):
+        num_rdg = len(self.readings)
+        nodes = []
+        locs = []
+        for rdg in range(num_rdg):
+            num_dipole = len(self.readings[rdg].Vdp)
+            for dp in range(num_dipole):
+                node1_id = self.readings[rdg].Vdp[dp].Rx1File[:2]
+                node2_id = self.readings[rdg].Vdp[dp].Rx2File[:2]
+                if not node1_id in nodes:
+                    nodes.append(node1_id)
+                    pos = np.asarray([self.readings[rdg].Vdp[dp].Rx1East,
+                                     self.readings[rdg].Vdp[dp].Rx1North])
+                    locs.append(pos)
+                if not node2_id in nodes:
+                    nodes.append(node2_id)
+                    pos = np.asarray([self.readings[rdg].Vdp[dp].Rx2East,
+                                     self.readings[rdg].Vdp[dp].Rx2North])
+                    locs.append(pos)
+        return nodes, locs
+
 
     def writeColeColeSEDat(self, outname, start_time, end_time):
         """

@@ -3,7 +3,7 @@ SHELL = /bin/bash
 FC  = gfortran
 FPY = f2py3.5
 
-ROOT            = /Users/larnier/Documents/dias/mt/
+ROOT            = C:/Users/johnk/devProjects/Python\PyDev/MT_toolbox/
 FPYFLAGS        = -c --opt='-fcheck=all -O3 -fexternal-blas '
 
 

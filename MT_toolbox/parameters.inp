@@ -6,12 +6,12 @@
   <type=Z><# site type: E/H: Z, H_z/H: T, E + H_z/H: Full>
   <output_level=1>
 <data>
-  <ex=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ex3.bin><# Path for Ex>
-  <ey=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ey3.bin><# Path for Ey>
-  <hx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hx3.bin><# Path for Hx>
-  <hy=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hy3.bin><# Path for Hy>
-  <rx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Rx3.bin><# Path for Rx>
-  <ry=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ry3.bin><# Path for Ry>
+  <ex=C:/Users/johnk/devProjects/Python/PyDev/MT_toolbox/data_MT/Ex3.bin><# Path for Ex>
+  <ey=C:/Users/johnk/devProjects/Python/PyDev/MT_toolbox/data_MT/Ey3.bin><# Path for Ey>
+  <hx=C:/Users/johnk/devProjects/Python/PyDev/MT_toolbox/data_MT/Hx3.bin><# Path for Hx>
+  <hy=C:/Users/johnk/devProjects/Python/PyDev/MT_toolbox/data_MT/Hy3.bin><# Path for Hy>
+  <rx=C:/Users/johnk/devProjects/Python/PyDev/MT_toolbox/data_MT/Rx3.bin><# Path for Rx>
+  <ry=C:/Users/johnk/devProjects/Python/PyDev/MT_toolbox/data_MT/Ry3.bin><# Path for Ry>
 <processing_parameters>
   <tbw=2>
   <nfft=1024>

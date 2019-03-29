@@ -4,8 +4,8 @@ import pylab as plt
 import scipy.linalg as slin
 import time
 from scipy.stats import rayleigh, beta
-import libMatrix
-import libInversion
+# import libMatrix
+# import libInversion
 import scipy
 
 np.warnings.filterwarnings('ignore')
@@ -300,6 +300,7 @@ def robust_regression_old(output, input, ref, output_level):
 def jackknife_statistics(population):
 
     mean = 1. / len(population) * np.sum(population)
+    # im sure this could be vectorized / tiled 
     var = (len(population) - 1) / len(population) * np.sum([(sample - mean) ** 2 for sample in population])
 
     return mean, var
@@ -418,12 +419,23 @@ def invert_tensor(cm, d):
 
 
 def hat_matrix(input, weights):
-    hat = []
+    nC = input[:, 0].size
+    hat = np.zeros((nC, nC))
 
-    dot_product_H = libMatrix.dot_product_h(input, weights, len(input))
+    dot_product_H = np.zeros((2, 2))
+    dot_product_H[0, 0] = np.sum(input[:, 0].conjugate() * input[:, 0] * weights.diagonal())
+    dot_product_H[0, 1] = np.sum(input[:, 0].conjugate() * input[:, 1] * weights.diagonal())
+    dot_product_H[1, 0] = np.sum(input[:, 1].conjugate() * input[:, 0] * weights.diagonal())
+    dot_product_H[1, 1] = np.sum(input[:, 1].conjugate() * input[:, 1] * weights.diagonal())
+
     unit = np.asarray([[np.complex(1, 0), np.complex(0, 0)], [np.complex(0, 0), np.complex(1, 0)]])
     # Inverting dot product
     dot_product_H_inv = slin.solve(dot_product_H, unit)
-    hat = libMatrix.hat_matrix(input, dot_product_H_inv, len(input))
+
+    arg1 = input[:, 0].conjugate() * dot_product_H_inv[0, 0] + input[:, 1].conjugate() * dot_product_H_inv[0, 1]
+    arg2 = input[:, 0].conjugate() * dot_product_H_inv[1, 0] + input[:, 1].conjugate() * dot_product_H_inv[1, 1]
+    input_tiled_x = np.tile(input[:, 0], (arg1.size, 1))
+    input_tiled_y = np.tile(input[:, 1], (arg2.size, 1))
+    hat = input_tiled_x * arg1 + input_tiled_y * arg2
 
     return hat

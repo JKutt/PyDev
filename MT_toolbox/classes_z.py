@@ -37,23 +37,26 @@ class Z:
         plot_lib.plot_tensor_res_phase(self.frequencies, self.Z, self.res_error, self.phase_error)
 
     def get_res_phase_error(self):
-        self.res_error = [[[2 * self.mu_0 * np.abs(self.Z[i][f][j]) * self.error[i][f][j]/ self.frequencies[f] / 2. / np.pi
+        self.res_error = np.real(np.asarray([[[2 * self.mu_0 * np.abs(self.Z[i][f][j]) * (self.error[i][f][j]) / self.frequencies[f] / 2. / np.pi
                                                                  for j in range(2)]
                                                                  for f in range(len(self.frequencies))]
-                                                                 for i in range(len(self.Z))]
+                                                                 for i in range(len(self.Z))]))
 
-        self.phase_error = [[[np.arcsin(self.error[i][f][j] / np.abs(self.Z[i][f][j]))
+        self.phase_error = np.real(np.asarray([[[np.arcsin(self.error[i][f][j] / np.abs(self.Z[i][f][j]))
                                                                  for j in range(2)]
                                                                  for f in range(len(self.frequencies))]
-                                                                 for i in range(len(self.Z))]
+                                                                 for i in range(len(self.Z))]))
+
+        for i in range(len(self.Z)):
+            for f in range(len(self.frequencies)):
+                for j in range(2):
+                    if np.isnan(self.phase_error[i][f][j]):
+                        self.phase_error[i][f][j] = np.pi / 2.
 
     def rotate(self):
         print("To do.")
 
     def get_phase_tensor(self):
-        print("To do.")
-
-    def get_tipper(self):
         print("To do.")
 
     def get_invariants(self):

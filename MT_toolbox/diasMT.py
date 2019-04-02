@@ -1,7 +1,4 @@
 from sys import exit, path
-# paths
-path.append('./fortran_f2py')
-#
 
 import io_lib
 import spectrum_lib
@@ -50,6 +47,8 @@ if __name__ == '__main__':
                                  log_file=project.log_file)
     station.read_parameters_file_and_load_data()
     station.check_station(project.type)
+    if project.parameters.wavelets == 'yes':
+        station.get_wavelet_transforms()
 
     if args.test:
         print('[INFO] Test option was selected. Exiting now...')
@@ -79,5 +78,6 @@ if __name__ == '__main__':
         print('[INFO] Response function computation done.')
         print("[INFO_TIME] Elapsed time for robust regression: " + str(time.time() - regression_time) + ' seconds.')
         print('[INFO] Now writing output file.')
+        station.write_tensor(project)
         station.tensor.plot_tensor()
         station.tensor.plot_tensor_res_phase()

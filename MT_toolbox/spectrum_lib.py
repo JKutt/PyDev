@@ -4,9 +4,8 @@ import pylab as plt
 import scipy.linalg as slin
 import time
 from scipy.stats import rayleigh, beta
-# import libMatrix
-# import libInversion
 import scipy
+from scipy.signal import coherence
 
 np.warnings.filterwarnings('ignore')
 
@@ -22,7 +21,6 @@ def error_on_output_vectorized(G, d, m, w):
 
 def organize_matrices_vectorized(output, input, ref, weights):
     """
-
     # Return matrices for linear inversion
     # Input:
     # output: output channels in transfer function system (ie. for MT, electric field)
@@ -54,7 +52,6 @@ def organize_matrices_vectorized(output, input, ref, weights):
 
 def get_frequencies(sample_freq, param):
     """
-
     # Write the frequency array that will be output depending on input parameters.
     # Input:
     # sample_freq: signal sampling frequency
@@ -73,7 +70,6 @@ def get_frequencies(sample_freq, param):
 
 def get_taper(nfft, taper, *args):
     """
-
     # Return taper with desired parameters
     # Input:
     # nfft: Taper length
@@ -97,14 +93,12 @@ def get_taper(nfft, taper, *args):
 
 def apply_taper(window, taper):
     """
-
     # Return tapered window
     # Input:
     # window: Window to be tapered
     # taper: taper to be applied
     # Output:
     # Taper window
-
     freq = np.linspace(0, 1, len(window)) * 2048
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     ax1.set_yscale('log')
@@ -118,6 +112,12 @@ def apply_taper(window, taper):
     """
     return np.asarray(window) * np.asarray(taper)
 
+
+def get_coherence_window(s_1, s_2, sample_freq):
+
+    f, C = coherence(s_1 - np.mean(s_1), s_2 - np.mean(s_2), fs=sample_freq, window=('dpss', 3), nperseg=len(s_1) / 2, noverlap=len(s_1) / 8, nfft=len(s_1))
+
+    return C
 
 def robust_regression(output, input, ref, output_level):
 
@@ -236,8 +236,9 @@ def robust_regression(output, input, ref, output_level):
             print("\t\t\t[INFO_TIME] Elapsed time for matrix inversion: " + str(time.time() - s_time) + ' seconds.')
         z_jackknife[n] = m
 
-    _, z_error[0] = jackknife_statistics([z_jackknife[i][0] for i in range(len(z_jackknife))])
-    _, z_error[1] = jackknife_statistics([z_jackknife[i][1] for i in range(len(z_jackknife))])
+    cov_matrix_jackknife = jackknife_covariance(np.asarray(z_regression), z_jackknife, hat)
+    z_error[0] = np.sqrt(np.real(cov_matrix_jackknife[0, 0]))
+    z_error[1] = np.sqrt(np.real(cov_matrix_jackknife[1, 1]))
 
     return z_regression, z_error
 
@@ -245,7 +246,6 @@ def robust_regression(output, input, ref, output_level):
 
 def robust_regression_old(output, input, ref, output_level):
     """
-
     # Return jackknifed error
     # Input:
     # output: output channels in transfer function system (ie. for MT, electric field)
@@ -297,10 +297,21 @@ def robust_regression_old(output, input, ref, output_level):
         return [m[0][0], m[1][0]]
 
 
+def jackknife_covariance(z, z_jackknife, hat):
+
+    N = len(z_jackknife)
+    covariance_matrix = np.zeros((2, 2))
+    covariance_matrix[0, 0] = N / (N - 2) * np.sum([hat.diagonal() * hat.diagonal() * (z[0] - np.asarray(z_jackknife[0])) * (np.conjugate(z[0] - np.asarray(z_jackknife[0])))])
+    covariance_matrix[0, 1] = N / (N - 2) * np.sum([hat.diagonal() * hat.diagonal() * (z[0] - np.asarray(z_jackknife[0])) * (np.conjugate(z[1] - np.asarray(z_jackknife[1])))])
+    covariance_matrix[1, 0] = N / (N - 2) * np.sum([hat.diagonal() * hat.diagonal() * (z[1] - np.asarray(z_jackknife[1])) * (np.conjugate(z[0] - np.asarray(z_jackknife[0])))])
+    covariance_matrix[1, 1] = N / (N - 2) * np.sum([hat.diagonal() * hat.diagonal() * (z[1] - np.asarray(z_jackknife[1])) * (np.conjugate(z[1] - np.asarray(z_jackknife[1])))])
+
+    return np.real(covariance_matrix)
+
 def jackknife_statistics(population):
 
     mean = 1. / len(population) * np.sum(population)
-    # im sure this could be vectorized / tiled 
+    # im sure this could be vectorized / tiled
     var = (len(population) - 1) / len(population) * np.sum([(sample - mean) ** 2 for sample in population])
 
     return mean, var
@@ -308,7 +319,6 @@ def jackknife_statistics(population):
 
 def new_weights(abs_error, scale):
     """
-
     # Return weights depending on error scale
     # Input:
     # abs_error = dot product of spread in electric field between measured and predicted
@@ -344,7 +354,6 @@ def leverage_weights(hat, u, bquantile):
 
 def error_on_output(m, d, G, weights):
     """
-
     # Return error and scale information for the robust regression
     # Input:
     # m: model (ie Z) in the Gm = d problem to solve
@@ -373,7 +382,6 @@ def error_on_output(m, d, G, weights):
 
 def organize_matrices(output, input, ref, weights):
     """
-
     # Return matrices for linear inversion
     # Input:
     # output: output channels in transfer function system (ie. for MT, electric field)
@@ -406,7 +414,6 @@ def organize_matrices(output, input, ref, weights):
 
 def invert_tensor(cm, d):
     """
-
     # Return model issued from linear inversion of least-squares problem
     # Input:
     # cm: Left side of least squares regression model containing weights and local predictor

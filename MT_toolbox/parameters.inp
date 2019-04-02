@@ -1,17 +1,18 @@
 <project><# Project related>
-  <station=DEV><# Station Name>
+  <patch=GRID_NAME><# Grid name>
+  <station=DEV_FULL><# Station Name>
   <client=DEV_CLIENT><# Client Name>
   <processor=Hugo Larnier><# Processor name>
-  <folder=/Users/larnier/Documents/dias/mt/output_dev><# folder where files will be written>
+  <folder=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/output_dev><# folder where files will be written>
   <type=Z><# site type: E/H: Z, H_z/H: T, E + H_z/H: Full>
   <output_level=1>
 <data>
-  <ex=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ex3.bin><# Path for Ex>
-  <ey=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ey3.bin><# Path for Ey>
-  <hx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hx3.bin><# Path for Hx>
-  <hy=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Hy3.bin><# Path for Hy>
-  <rx=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Rx3.bin><# Path for Rx>
-  <ry=/Users/larnier/Documents/dias/mt/data/elf/hfB2_Night/Ry3.bin><# Path for Ry>
+  <ex=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Ex8.bin><# Path for Ex>
+  <ey=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Ey8.bin><# Path for Ey>
+  <hx=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Hx8.bin><# Path for Hx>
+  <hy=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Hy8.bin><# Path for Hy>
+  <rx=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Rx8.bin><# Path for Rx>
+  <ry=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Ry8.bin><# Path for Ry>
 <processing_parameters>
   <tbw=2>
   <nfft=1024>
@@ -24,4 +25,7 @@
   <nb_reductions=3>
   <output=dev>
   <error=jackknife>
+  <local_coherence=0.1>
+  <remote_coherence=0.5>
+  <wavelets=no>
 <filtering>

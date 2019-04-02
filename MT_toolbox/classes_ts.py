@@ -1,6 +1,7 @@
 import numpy as np
 import pylab as plt
 import spectrum_lib
+import wavelet_lib as wav_lib
 import sys
 import glob
 import io_lib
@@ -11,6 +12,7 @@ import multiprocessing
 class project:
 
     def __init__(self,
+                patch=None,
                 station=None,
                 parameters=None,
                 client=None,
@@ -22,6 +24,7 @@ class project:
                 output_level=None,
                 log_file=None):
 
+        self.patch = patch
         self.station = station
         self.parameters = parameters
         self.client = client
@@ -37,6 +40,8 @@ class project:
         f_in = open('parameters.inp', 'r')
         lines = f_in.readlines()
         for line in lines:
+            if 'patch' in line:
+                self.patch = line.split('patch=')[1].split('>')[0]
             if 'station' in line:
                 self.station = line.split('station=')[1].split('>')[0]
             if 'client' in line:
@@ -49,7 +54,8 @@ class project:
                 self.type = line.split('type=')[1].split('>')[0]
             if 'output_level' in line:
                 self.output_level = int(line.split('output_level=')[1].split('>')[0])
-        if self.station == None or\
+        if self.patch == None or \
+           self.station == None or\
            self.client == None or\
            self.processor == None or\
            self.folder == None or\
@@ -84,6 +90,12 @@ class project:
                 self.parameters.output = line.split('output=')[1].split('>')[0]
             if 'error=' in line:
                 self.parameters.error = line.split('error=')[1].split('>')[0]
+            if 'local_coherence=' in line:
+                self.parameters.local_coherence = float(line.split('local_coherence=')[1].split('>')[0])
+            if 'remote_coherence=' in line:
+                self.parameters.remote_coherence = float(line.split('remote_coherence=')[1].split('>')[0])
+            if 'wavelets=' in line:
+                self.parameters.wavelets = line.split('wavelets=')[1].split('>')[0]
 
         if self.output_level > 0:
             print('[INFO] Parameters section is loaded')
@@ -111,6 +123,12 @@ class project:
             print('[INFO] Everything seems good to start reading files. Starting to write log file.')
             self.log_file = self.folder + '/processing.log'
 
+        if self.parameters.remote_coherence == None:
+            print('[INFO] No coherence thresholding between local and remote has been setup in the parameters files. Will not use.')
+
+        if self.parameters.local_coherence == None:
+            print('[INFO] No coherence thresholding between local output and local input has been setup in the parameters files. Will not use.')
+
 
 class station_mt:
 
@@ -121,7 +139,9 @@ class station_mt:
                 tensor=None,
                 output_level=None,
                 sample_freq=None,
-                log_file=None):
+                log_file=None,
+                location=None,
+                coherence=None):
 
         self.input = []
         self.output = []
@@ -132,6 +152,8 @@ class station_mt:
             self.output_level = 0
         self.sample_freq = sample_freq
         self.log_file = log_file
+        self.location = location
+        self.coherence = coherence
 
     def read_parameters_file_and_load_data(self):
         f_in = open('parameters.inp', 'r')
@@ -142,37 +164,51 @@ class station_mt:
                 self.output.append(time_serie(file_name=tmp,
                                               sample_freq=2048,
                                               output_level=self.output_level,
-                                              log_file=self.log_file))
+                                              log_file=self.log_file,
+                                              type='Ex'))
             if '<ey' in line:
                 tmp = line.split('<ey=')[1].split('>')[0]
                 self.output.append(time_serie(file_name=tmp,
                                               sample_freq=2048,
                                               output_level=self.output_level,
-                                              log_file=self.log_file))
+                                              log_file=self.log_file,
+                                              type='Ey'))
+
+            if '<hz' in line:
+                tmp = line.split('<hz=')[1].split('>')[0]
+                self.output.append(time_serie(file_name=tmp,
+                                              sample_freq=2048,
+                                              output_level=self.output_level,
+                                              log_file=self.log_file,
+                                              type='Hz'))
             if '<hx' in line:
                 tmp = line.split('<hx=')[1].split('>')[0]
                 self.input.append(time_serie(file_name=tmp,
                                              sample_freq=2048,
                                              output_level=self.output_level,
-                                             log_file=self.log_file))
+                                             log_file=self.log_file,
+                                             type='Hx'))
             if '<hy' in line:
                 tmp = line.split('<hy=')[1].split('>')[0]
                 self.input.append(time_serie(file_name=tmp,
                                              sample_freq=2048,
                                              output_level=self.output_level,
-                                             log_file=self.log_file))
+                                             log_file=self.log_file,
+                                             type='Hy'))
             if '<rx' in line:
                 tmp = line.split('<rx=')[1].split('>')[0]
                 self.ref.append(time_serie(file_name=tmp,
                                            sample_freq=2048,
                                            output_level=self.output_level,
-                                           log_file=self.log_file))
+                                           log_file=self.log_file,
+                                           type='Rx'))
             if '<ry' in line:
                 tmp = line.split('<ry=')[1].split('>')[0]
                 self.ref.append(time_serie(file_name=tmp,
                                            sample_freq=2048,
                                            output_level=self.output_level,
-                                           log_file=self.log_file))
+                                           log_file=self.log_file,
+                                           type='Ry'))
 
         if self.output_level > 0:
             print('[INFO] Data section is loaded')
@@ -184,7 +220,7 @@ class station_mt:
                                      for f in range(len(self.tensor.frequencies))]
                                      for channel in range(len(self.output))])
 
-        self.tensor.error = np.asarray([[[np.complex(0, 0), np.complex(0, 0)]
+        self.tensor.error = np.asarray([[[0., 0.]
                                           for f in range(len(self.tensor.frequencies))]
                                           for channel in range(len(self.output))])
         if self.output_level > 1:
@@ -256,6 +292,21 @@ class station_mt:
                         print('[INFO] Time series have the same length.')
 
         print('[INFO] Everything seems good to start spectral analysis.')
+        self.location = [self.output[0].northing, self.output[0].easting,
+                         self.output[0].elevation, self.output[0].zone]
+
+    def get_wavelet_transforms(self):
+        print('[WARNING] Hugo: Needs to parametrize input frequencies. Will do it later.')
+        dyadic_frequencies = wav_lib.dyadic_frequencies(2, 64, 10)
+        for i in range(len(self.output)):
+            self.output[i].wavelets = wav_lib.wavelet_analysis(self.output[i].data, self.output[i].sample_freq, dyadic_frequencies)
+        for i in range(len(self.input)):
+            self.input[i].wavelets = wav_lib.wavelet_analysis(self.input[i].data, self.input[i].sample_freq, dyadic_frequencies)
+            fig, ax1 = plt.subplots(1, 1)
+            ax1.imshow(self.input[i].wavelets.transpose(), aspect='auto', cmap='jet')
+            plt.show()
+        for i in range(len(self.ref)):
+            self.ref[i].wavelets = wav_lib.wavelet_analysis(self.ref[i].data, self.ref[i].sample_freq, dyadic_frequencies)
 
     def plot(self):
 
@@ -286,24 +337,98 @@ class station_mt:
             self.ref[i].get_fft_segments()
 
 
+    def get_coherence_elec_mag(self, index):
+
+        self.coherence = [[], []]
+        for j in range(len(self.input)):
+            for i in range(len(self.output[0].segments)):
+                coherence = spectrum_lib.get_coherence_window(self.output[j].segments[i],
+                                            self.input[j].segments[i],
+                                            self.input[j].sample_freq)
+                self.coherence[j].append(coherence)
+
+
+        array_coherence = np.asarray([[0. for i in range(len(self.output[0].segments))] for j in range(2)])
+        for i, segment in zip(range(len(self.output[0].segments)), self.coherence[0]):
+            array_coherence[0][i] = self.coherence[0][i][index]
+            array_coherence[1][i] = self.coherence[1][i][index]
+
+        return array_coherence
+
+    def get_coherence_local_remote(self, index):
+
+        self.coherence = [[], []]
+        for j in range(len(self.input)):
+            for i in range(len(self.ref[0].segments)):
+                coherence = spectrum_lib.get_coherence_window(self.input[j].segments[i],
+                                            self.ref[j].segments[i],
+                                            self.input[j].sample_freq)
+                self.coherence[j].append(coherence)
+
+
+        array_coherence = np.asarray([[0. for i in range(len(self.ref[0].segments))] for j in range(2)])
+        for i, segment in zip(range(len(self.ref[0].segments)), self.coherence[0]):
+            array_coherence[0][i] = self.coherence[0][i][index]
+            array_coherence[1][i] = self.coherence[1][i][index]
+
+        return array_coherence
+
+    def apply_coherence(self, output_in, input_in, ref_in, array_coherence, criteria):
+
+        output = []
+        input = [[] for i in range(len(input_in))]
+        ref = [[] for i in range(len(ref_in))]
+        for i in range(len(output_in)):
+            #if not np.isnan(array_coherence[0][i]) and not np.isnan(array_coherence[1][i]):
+            if array_coherence[0][i] > criteria or array_coherence[1][i] > criteria:
+                output.append(output_in[i])
+                for j in range(len(input_in)):
+                    input[j].append(input_in[j][i])
+                for j in range(len(ref_in)):
+                    ref[j].append(ref_in[j][i])
+
+        return output, input, ref
+
     def recover_Z(self, step, param):
 
         ### PARALLEL
         # Using a pool of worker to work on each frequency
+
         max_number_processes = multiprocessing.cpu_count()
         #pool = multiprocessing.Pool(max_number_processes - 20)
         pool = multiprocessing.Pool(2)
         r = []
+        
         print("\tStarting workers pool: " + str(2) + " workers working on robust regressions.")
         for ind in range(param.nb_increment):
-            #res = pool.map(datlib.read_node_library, )
             index = param.index_first_frequency + ind * param.frequency_increment
+            print("\tApplying coherence thresholding.")
+            if not param.remote_coherence == None:
+                array_coherence_remote = self.get_coherence_local_remote(index)
+            if not param.local_coherence == None:
+                array_coherence_local = self.get_coherence_elec_mag(index)
             for channel in range(len(self.output)):
-                r.append(pool.apply_async(spectrum_lib.robust_regression,
-                                            (self.output[channel].get_fourier_index(index),
+                if not param.remote_coherence == None:
+                    output_reg, input_reg, ref_reg = self.apply_coherence(
+                                            self.output[channel].get_fourier_index(index),
                                             [self.input[i].get_fourier_index(index) for i in range(len(self.input))],
                                             [self.ref[i].get_fourier_index(index) for i in range(len(self.ref))],
-                                            self.output_level)))
+                                            array_coherence_remote, param.remote_coherence)
+                else:
+                    output_reg = self.output[channel].get_fourier_index(index)
+                    input_reg = [self.input[i].get_fourier_index(index) for i in range(len(self.input))]
+                    ref_reg = [self.ref[i].get_fourier_index(index) for i in range(len(self.ref))]
+                if not param.local_coherence == None:
+                    output_reg, input_reg, ref_reg = self.apply_coherence(
+                                            output_reg, input_reg, ref_reg, array_coherence_local, param.local_coherence)
+
+                r.append(pool.apply_async(spectrum_lib.robust_regression,
+                                            (output_reg, input_reg, ref_reg, self.output_level)))
+                #r.append(pool.apply_async(spectrum_lib.robust_regression,
+                #                            (self.output[channel].get_fourier_index(index),
+                #                            [self.input[i].get_fourier_index(index) for i in range(len(self.input))],
+                #                            [self.ref[i].get_fourier_index(index) for i in range(len(self.ref))],
+                #                            self.output_level)))
         pool.close()
         pool.join()
 
@@ -335,9 +460,116 @@ class station_mt:
 
 
 
-    def write_Z(self, project):
-        print('TODO')
+    def write_tensor(self, project):
+        fOut = open(project.folder + '/' + project.station + '.DAT', 'w')
+        fOut.write('#Patch: ' + project.patch + '\n')
+        fOut.write('#Station: ' + project.station + '\n')
+        if not None in self.location:
+            fOut.write('#Location (UTM): ' + '{:10f}'.format(self.location[0]) + ';'
+                    '{:10f}'.format(self.location[1]) + ';'
+                    '{:10f}'.format(self.location[2]) + ';Zone:' +
+                    self.location[3] + '\n')
+        else:
+            fOut.write('#Location (UTM): NA;NA;NA;Zone:NA' + '\n')
+        fOut.write('#Client: ' + project.client + '\n')
+        fOut.write('#Processor: ' + project.processor + '\n')
+        fOut.write('#Time series:\n')
+        for ts in self.output:
+            fOut.write('#' + ts.type + ': ' + ts.file_name + '\n')
+        for ts in self.input:
+            fOut.write('#' + ts.type + ': ' + ts.file_name + '\n')
+        for ts in self.ref:
+            fOut.write('#' + ts.type + ': ' + ts.file_name + '\n')
 
+        self.tensor.get_res_phase_error()
+        # Writing real and imaginary parts
+        if project.type == 'Z':
+            fOut.write('#Tensor type: Impedance (Real and Imaginary)\n')
+            fOut.write('#Units: Frequency [Hz], Z [mV/km/nT]\n')
+            columns = ['#Frequency', 'R Zxx',
+                        'R Zxy', 'R Zyx',
+                        'R Zyy', 'I Zxx',
+                        'I Zxy', 'R Zyxr',
+                        'I Zyy', 'STD Zxx',
+                        'STD Zxy', 'STD Zyx',
+                        'STD Zyy']
+            for item in columns:
+                fOut.write('{:>15}'.format(item))
+            fOut.write('\n')
+        if project.type == 'T':
+            fOut.write('Tensor type: Tipper\n')
+            fOut.write('#Units: T []\n')
+            columns = ['#Frequency', 'R Tx',
+                        'I Tx', 'R Ty',
+                        'I Ty', 'STD Tx',
+                        'STD Ty']
+            for item in columns:
+                fOut.write('{:>15}'.format(item))
+            fOut.write('\n')
+        if project.type == 'Full':
+            fOut.write('Tensor type: Full tensor (Impedance + Tipper)\n')
+            fOut.write('#Units: Frequency [Hz], Z [mV/km/nT], T []\n')
+            columns = ['#Frequency', 'R Zxx',
+                        'R Zxy', 'R Zyx',
+                        'R Zyy', 'R Tx',
+                        'R Ty', 'I Zxx',
+                        'I Zxy', 'R Zyxr',
+                        'I Zyy', 'I Tx',
+                        'I Ty', 'STD Zxx',
+                        'STD Zxy', 'STD Zyx',
+                        'STD Zyy', 'STD Tx',
+                        'STD Ty']
+            for item in columns:
+                fOut.write('{:>15}'.format(item))
+            fOut.write('\n')
+        for (freq, ind) in zip(self.tensor.frequencies, range(len(self.tensor.frequencies))):
+            fOut.write('{:15f}'.format(freq))
+            for channel in range(len(self.tensor.Z)):
+                fOut.write('{:15f}'.format(np.real(self.tensor.Z[channel, ind, 0])))
+                fOut.write('{:15f}'.format(np.real(self.tensor.Z[channel, ind, 1])))
+            for channel in range(len(self.tensor.Z)):
+                fOut.write('{:15f}'.format(np.imag(self.tensor.Z[channel, ind, 0])))
+                fOut.write('{:15f}'.format(np.imag(self.tensor.Z[channel, ind, 1])))
+
+            for channel in range(len(self.tensor.error)):
+                fOut.write('{:15f}'.format((self.tensor.error[channel, ind, 0])))
+                fOut.write('{:15f}'.format((self.tensor.error[channel, ind, 1])))
+            fOut.write('\n')
+
+        # Writing rho/phase parts
+        if project.type == 'Z' or project.type == 'Full':
+            fOut.write('#Tensor type: Impedance (Resistivity and Phase)\n')
+            fOut.write('#Units: Frequency [Hz], Z [mV/km/nT]\n')
+            columns = ['#Frequency', 'Rho_xx',
+                        'Rho_xy', 'Rho_yx',
+                        'Rho_yy', 'Phase_xx',
+                        'Phase_xy', 'Phase_yx',
+                        'Phase_yy', 'STD Rho_xx',
+                        'STD Rho_xy', 'STD Rho_yx',
+                        'STD Rho_yy', 'STD Phase_xx',
+                        'STD Phase_xy', 'STD Phase_yx',
+                        'STD Phase_yy']
+            for item in columns:
+                fOut.write('{:>15}'.format(item))
+            fOut.write('\n')
+
+            for (freq, ind) in zip(self.tensor.frequencies, range(len(self.tensor.frequencies))):
+                fOut.write('{:15f}'.format(freq))
+                for channel in range(2):
+                    fOut.write('{:15f}'.format(np.abs(self.tensor.Z[channel, ind, 0]) ** 2 / 5. / freq))
+                    fOut.write('{:15f}'.format(np.abs(self.tensor.Z[channel, ind, 1]) ** 2 / 5. / freq))
+                for channel in range(2):
+                    fOut.write('{:15f}'.format(np.angle(self.tensor.Z[channel, ind, 0])))
+                    fOut.write('{:15f}'.format(np.angle(self.tensor.Z[channel, ind, 1])))
+
+                for channel in range(2):
+                    fOut.write('{:15f}'.format(self.tensor.res_error[channel, ind, 0]))
+                    fOut.write('{:15f}'.format(self.tensor.res_error[channel, ind, 1]))
+                for channel in range(2):
+                    fOut.write('{:15f}'.format(self.tensor.phase_error[channel, ind, 0]))
+                    fOut.write('{:15f}'.format(self.tensor.phase_error[channel, ind, 1]))
+                fOut.write('\n')
+        fOut.close()
 
 class parameters:
 
@@ -353,7 +585,10 @@ class parameters:
                 length_reduction=None,
                 nb_reductions=None,
                 output_level=None,
-                error=None):
+                error=None,
+                local_coherence=None,
+                remote_coherence=None,
+                wavelets=None):
         self.output = output
         self.nfft = nfft
         self.tbw = tbw
@@ -365,6 +600,9 @@ class parameters:
         self.length_reduction = length_reduction
         self.nb_reductions = nb_reductions
         self.error = error
+        self.local_coherence = local_coherence
+        self.remote_coherence = remote_coherence
+        self.wavelets = wavelets
 
 
 class step_parameters:
@@ -408,12 +646,15 @@ class time_serie:
                 easting=None,
                 northing=None,
                 elevation=None,
+                zone=None,
                 type=None,
                 orientation=None,
                 data=None,
                 data_fft=None,
                 segments=None,
                 segments_fft=None,
+                segments_coherence=None,
+                wavelets=None,
                 output_level=None,
                 log_file=None):
         self.file_name = file_name
@@ -423,12 +664,15 @@ class time_serie:
         self.easting = easting
         self.northing = northing
         self.elevation = elevation
+        self.zone = zone
         self.type = type
         self.orientation = orientation
         self.data = data
         self.data_fft = data_fft
         self.segments = []
         self.segments_fft = []
+        self.segments_coherence = []
+        self.wavelets = wavelets
         self.output_level = output_level
         self.log_file = log_file
         self.check_path()
@@ -467,10 +711,12 @@ class time_serie:
         else:
             print('[WARNING] Segmentation hasn\'t been done yet. Use self.segment_data(self, parameters).')
 
+
     def get_fft_segments(self):
         self.segments_fft = []
         for i in range(len(self.segments)):
             self.segments_fft.append(np.fft.fft(self.segments[i]))
+
 
     def get_fourier_index(self, index):
         array_spectral = np.asarray([np.complex(0, 0) for i in range(len(self.segments))])

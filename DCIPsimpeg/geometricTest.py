@@ -47,16 +47,16 @@ outname = "/Users/juan/Documents/testData/B2_15_125-Loc-mod.DAT"
 # rx1 = [389390.000, 3279120.000, 18.000]
 # rx2 = [389396.000, 3279142.000, 18.000]
 
-tx1 = [403997.712, 4418553.983, 1912.000]
-tx2 = [411852.000, 4419621.000, 2000.000]
+tx1 = [402498.136, 4422553.847, 1954.000]
+tx2 = [402551.309, 4418553.113, 1843.000]
 # rx1 = [407872.933, 4416797.805, 2248.700]
 # rx2 = [407624.695, 4416704.227, 2232.320]
 
-rx1 = [405130., 4419200., 2055.]
-rx2 = [405124., 4419498., 2050.]
+rx1 = [402626.000, 4419400.000, 1850.000]
+rx2 = [402128.000, 4419102.000, 1821.000]
 
 # points = np.vstack((tx2, tx1, rx1, rx2))
-points = np.vstack((tx1, rx1, rx2))
+points = np.vstack((tx1, tx2, rx1, rx2))
 minx = np.min(points[:, 0]) - 100
 miny = np.min(points[:, 1]) - 100
 maxx = np.max(points[:, 0]) + 100
@@ -84,7 +84,7 @@ background = 5000                                 # normalized current
 v1 = (In * background) / (2 * np.pi * r1_)        # voltage at point 1
 v2 = -1 * (In * background) / (2 * np.pi * r2_)      # voltage at point 2
 v = (v1 + v2) * 1000
-plt.contourf(X, Y, np.log(np.abs(v)), cmap='magma')
+plt.contourf(X, Y, v, cmap='magma')
 plt.colorbar()
 # for idx in range(x.size):
 
@@ -142,9 +142,11 @@ print("r1: {0} r2: {1} r3: {2} r4: {3}".format(r1, r2, r3, r4))
 # print("G: {0}".format(2 * np.pi * gf))
 # print("r1: {0} r2: {1} r3: {2} r4: {3}".format(r1, r2, r3, r4))
 
-plt.plot(tx1[0], tx1[1], 'r*')
-# plt.plot(tx2[0], tx2[1], 'k*')
-plt.plot(rx1[0], rx1[1], 'bo')
-plt.plot(rx2[0], rx2[1], 'go')
+plt.plot(tx1[0], tx1[1], 'r*', label='tx1')
+plt.plot(tx2[0], tx2[1], 'k*', label='tx2')
+plt.plot(rx1[0], rx1[1], 'bo', label='rx1')
+plt.plot(rx2[0], rx2[1], 'go', label='rx2')
+plt.title("Gf: {:f}".format(2 * np.pi * gf))
+plt.legend()
 plt.axes().set_aspect('equal', 'datalim')
 plt.show()

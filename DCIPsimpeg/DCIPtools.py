@@ -10,7 +10,7 @@ from scipy.special import factorial
 from SimPEG.EM.Static import DC
 import properties
 ##################################################
-# DCIPtools Version 0.9   March 2019
+# DCIPtools Version 1.0  April 2019
 
 
 class baseKernel(object):
@@ -1116,26 +1116,49 @@ class JvoltDipole:
                 #     break
         return data
 
-    def getXplotpoint(self, Idp):
-        if (self.Rx1x > Idp.Tx1x):
-            x = Idp.Tx1x + ((self.Rx1x - Idp.Tx1x) / 2.0)
-        elif (self.Rx1x < Idp.Tx1x):
-            x = Idp.Tx1x - ((Idp.Tx1x - self.Rx1x) / 2.0)
+    def getXplotpoint(self, Idp, dipole_dipole=False):
+        x = -9999.
+        if dipole_dipole:
+            mid_tx = (Idp.tx1x + Idp.tx2x) / 2.0
+            if (self.Rx1x > mid_tx):
+                x = mid_tx + ((self.Rx1x - mid_tx) / 2.0)
+            elif (self.Rx1x < mid_tx):
+                x = Idp.Tx1x - ((Idp.Tx1x - self.Rx1x) / 2.0)
+        else:
+            if (self.Rx1x > Idp.Tx1x):
+                x = Idp.Tx1x + ((self.Rx1x - Idp.Tx1x) / 2.0)
+            elif (self.Rx1x < Idp.Tx1x):
+                x = Idp.Tx1x - ((Idp.Tx1x - self.Rx1x) / 2.0)
         return x
 
-    def getYplotpoint(self, Idp):
-        if (self.Rx1y > Idp.Tx1y):
-            y = Idp.Tx1y + ((self.Rx1y - Idp.Tx1y) / 2.0)
-        elif (self.Rx1y < Idp.Tx1y):
-            y = Idp.Tx1y - ((Idp.Tx1y - self.Rx1y) / 2.0)
+    def getYplotpoint(self, Idp, dipole_dipole=False):
+        y = -9999.
+        if dipole_dipole:
+            mid_tx = (Idp.tx1y + Idp.tx2y) / 2.0
+            if (self.Rx1y > Idp.Tx1y):
+                y = mid_tx + ((self.Rx1y - mid_tx) / 2.0)
+            elif (self.Rx1y < mid_tx):
+                y = mid_tx - ((mid_tx - self.Rx1y) / 2.0)
+        else:
+            if (self.Rx1y > Idp.Tx1y):
+                y = Idp.Tx1y + ((self.Rx1y - Idp.Tx1y) / 2.0)
+            elif (self.Rx1y < Idp.Tx1y):
+                y = Idp.Tx1y - ((Idp.Tx1y - self.Rx1y) / 2.0)
         return y
 
-    def getZplotpoint(self, Idp):
-        r = np.sqrt((Idp.Tx1x - self.Rx2x)**2 +
-                    (Idp.Tx1y - self.Rx2y)**2 +
-                    (Idp.Tx1Elev - self.Rx2Elev)**2)
-        # z = -(abs(Idp.Tx1 - self.Rx1)) / 2.0
-        z = -(r / 3.)
+    def getZplotpoint(self, Idp, dipole_dipole=False):
+        z = -9999.
+        if dipole_dipole:
+            mid_tx = (Idp.tx1x + Idp.tx2x) / 2.0
+            r = np.sqrt((mid_tx - self.Rx2x)**2 +
+                        (mid_tx - self.Rx2y)**2 +
+                        (Idp.Tx1Elev - self.Rx2Elev)**2)
+            z = -(abs(mid_tx - self.Rx1x)) / 2.0
+        else:
+            r = np.sqrt((Idp.Tx1x - self.Rx2x)**2 +
+                        (Idp.Tx1y - self.Rx2y)**2 +
+                        (Idp.Tx1Elev - self.Rx2Elev)**2)
+            z = -(r / 3.)
         return z
 
     def calcSensitivity(self, Idp, ne, sw, dx,
@@ -1157,7 +1180,6 @@ class JvoltDipole:
         Y = np.arange(sw[1], ne[1], dx)
         Z = np.arange(sw[2], ne[2], dx)
         x, y, z = np.meshgrid(X, Y, Z)
-
         # compactify the calculation
         arg1 = (((x - xa) * (x - xm) + (y - ya) * (y - ym) +
                 (z - za) * (z - zm)) *
@@ -1177,15 +1199,14 @@ class JvoltDipole:
                 (((x - xn)**2 + (y - yn)**2 + (z - zn)**2)**-1.5))
         # evaluate sensitivity equation
         J = 1 / (4 * np.pi**2) * (arg1 - arg2 - arg3 + arg4)
-
         # get the span of the most sensitive layer
-        max_J = np.max(J) * 0.51
+        max_J = np.max(np.abs(J)) * 0.91
         levels = J.shape[2]
         slices_x = np.zeros((levels, 2))
         slices_y = np.zeros((levels, 2))
         for l in range(levels):
             z = J[:, :, l]
-            a = z > (np.max(z) * 0.51)
+            a = np.abs(z) > (np.max(np.abs(z)) * 0.61)
             X_ = x[a]
             Y_ = y[a]
             try:
@@ -1311,6 +1332,7 @@ class Jreading:
         self.win_end = []
         self.node_db = []
         self.node_locs = []
+        self.node_ids = []
         self.angles = []
 
     # method for adding voltage dipoles
@@ -1325,6 +1347,7 @@ class Jreading:
     def createNodeDB(self):
         nodes = []
         locs = []
+        node_num = []
         for dp in range(len(self.Vdp)):
             node1_id = self.Vdp[dp].Rx1File[:2]
             node2_id = self.Vdp[dp].Rx2File[:2]
@@ -1332,13 +1355,16 @@ class Jreading:
                 nodes.append(node1_id)
                 pos = np.asarray([self.Vdp[dp].Rx1East, self.Vdp[dp].Rx1North])
                 locs.append(pos)
+                node_num.append(self.Vdp[dp].Rx1File)
             if not node2_id in nodes:
                 nodes.append(node2_id)
                 pos = np.asarray([self.Vdp[dp].Rx2East, self.Vdp[dp].Rx2North])
                 locs.append(pos)
+                node_num.append(self.Vdp[dp].Rx2File)
         # assign node database
         self.node_db = nodes
         self.node_locs = locs
+        self.node_ids = node_num
 
     # method for getting angles of possible dipole given a spacing
     def calcAngles(self, min_dipole, max_dipole):
@@ -1448,8 +1474,9 @@ class Jpatch:
     def getNodeDataBase(self):
         num_rdg = len(self.readings)
         nodes = []
-        locs = []
+        # locs = []
         for rdg in range(num_rdg):
+            self.readings[rdg].createNodeDB()
             num_dipole = len(self.readings[rdg].Vdp)
             for dp in range(num_dipole):
                 node1_id = self.readings[rdg].Vdp[dp].Rx1File[:2]
@@ -1458,13 +1485,108 @@ class Jpatch:
                     nodes.append(node1_id)
                     pos = np.asarray([self.readings[rdg].Vdp[dp].Rx1East,
                                      self.readings[rdg].Vdp[dp].Rx1North])
-                    locs.append(pos)
+                    # locs.append(pos)
                 if not node2_id in nodes:
                     nodes.append(node2_id)
                     pos = np.asarray([self.readings[rdg].Vdp[dp].Rx2East,
                                      self.readings[rdg].Vdp[dp].Rx2North])
-                    locs.append(pos)
-        return nodes, locs
+                    # locs.append(pos)
+        return nodes
+
+    def checkForMissingRecords(self, record_log=None):
+        if record_log is not None:
+            rec_out_file = record_log + ".rlog"
+            text_file = open(record_log, "r")
+            outfile = open(rec_out_file, "w+")
+            # retrieve and assign the data
+            rec_log = []
+            current_rec = -1
+            for line in text_file:
+                spl = line.split(':')
+                if int(spl[1]) != current_rec:
+                    rec_log.append(int(spl[1]))
+                    current_rec = int(spl[1])
+            for rdg in range(len(self.readings)):
+                found_match = False
+                for rec in rec_log:
+                    if int(self.readings[rdg].MemNumber) == rec:
+                        found_match = True
+                if not found_match:
+                    outfile.write('rec %s found no match\n' % self.readings[rdg].MemNumber)
+            print("[OUTPUT]  Log file written to same file as records log location")
+        else:
+            print(      "Please supply a records log file!!!!!")
+
+    def checkContinuityInNodeFiles(self, path=None):
+        if path is not None:
+            nodes = self.getNodeDataBase()
+            nodes.sort()
+            # print(nodes)
+            outfile = open(path, "w+")
+            for idx in range(len(nodes)):
+                nid = nodes[idx]
+                files = []
+                hold_num = -99
+                hold_id = ""
+                hold_mem = -99
+                for rdg in range(len(self.readings)):
+                    for ids in range(len(self.readings[rdg].node_ids)):
+                        if nid == self.readings[rdg].node_ids[ids][:2]:
+                            if hold_num == -99:
+                                outfile.write('node %s mem start: %s\n' % (nid, self.readings[rdg].MemNumber))
+                                hold_num = int(self.readings[rdg].node_ids[ids][2:8])
+                                hold_mem = int(self.readings[rdg].MemNumber)
+                                hold_id = self.readings[rdg].node_ids[ids]
+                            else:
+                                diff = int(self.readings[rdg].node_ids[ids][2:8]) - hold_num
+                                if diff > 1:
+                                    outfile.write('found gap: %s mem: %i & %s mem: %s\n' % (hold_id,
+                                                   hold_mem, self.readings[rdg].node_ids[ids],
+                                                   self.readings[rdg].MemNumber))
+                                    hold_num = int(self.readings[rdg].node_ids[ids][2:8])
+                                    hold_mem = int(self.readings[rdg].MemNumber)
+                                    hold_id = self.readings[rdg].node_ids[ids]
+            # write node database collected from db file
+            for ids in nodes:
+                outfile.write('%s\n' % ids)
+            print("It be done!, file written")
+        else:
+            print("please supply path to database file")
+
+    def rejectDataFromSensitiveArea(self, dx, sw_s, ne_s, outFile=None):
+        """
+           This function takes in an area of concern and removes data
+           sensitive to the defined area
+        """
+        if outFile is not None:
+            rx_locs = self.getDipoles()
+            tx_locs = self.getSources()
+            sw = np.array([np.min(rx_locs[:, 0]), np.min(tx_locs[:, 1]),
+                  np.min(rx_locs[:, 2]) - 200])
+            ne = np.array([np.max(rx_locs[:, 0]), np.max(rx_locs[:, 1]),
+                  np.max(rx_locs[:, 2])])
+            X = np.arange(sw[0], ne[0], dx)
+            Y = np.arange(sw[1], ne[1], dx)
+            Z = np.arange(sw[2], ne[2], dx)
+            J_ = np.zeros((Y.size, X.size, Z.size))
+            for rdg in range(len(self.readings)):
+                current = self.readings[rdg].Idp
+                print("rec num: {0}".format(self.readings[rdg].MemNumber))
+                for dp in range(len(self.readings[rdg].Vdp)):
+                    J_ += self.readings[rdg].Vdp[dp].calcSensitivity(current,ne, sw, dx, sw_search=sw_s, ne_search=ne_s)
+            
+            start_time = self.window_start[0]
+            end_time = self.window_end[0]
+            start_inds = (window_start >= start_time)
+            stop_inds = (window_end <= end_time)
+            strt_time = window_start[start_inds]
+            stop_time = window_end[stop_inds]
+            # write the data to file
+            self.writeColeColeSEDat(outname, strt_time[0],
+                                     stop_time[stop_time.size - 1])
+            print("New File writte with sensitive area removed")
+        else:
+            print("     Please supply an output file path!")
 
 
     def writeColeColeSEDat(self, outname, start_time, end_time):

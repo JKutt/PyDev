@@ -1150,9 +1150,6 @@ class JvoltDipole:
         z = -9999.
         if dipole_dipole:
             mid_tx = (Idp.tx1x + Idp.tx2x) / 2.0
-            r = np.sqrt((mid_tx - self.Rx2x)**2 +
-                        (mid_tx - self.Rx2y)**2 +
-                        (Idp.Tx1Elev - self.Rx2Elev)**2)
             z = -(abs(mid_tx - self.Rx1x)) / 2.0
         else:
             r = np.sqrt((Idp.Tx1x - self.Rx2x)**2 +
@@ -1895,6 +1892,25 @@ class Jpatch:
 
         return np.vstack(error_list)
 
+    def getVpDivInErrors(self):
+        """
+        Exports all the eta data
+
+        Output:
+        numpy array [value]
+
+        """
+        error_list = []
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if self.readings[k].Vdp[j].flagRho == "Accept":
+                    err = (self.readings[k].Vdp[j].Vp_err + self.readings[k].Vdp[j].In_err) / 100.
+                    error_list.append(err)
+
+        return np.vstack(error_list)
+
     def getActiveIndicies(self, reject=None):
         """
         exports an array containing index of each available dipole
@@ -1983,8 +1999,6 @@ class Jpatch:
                     mx_a = (self.readings[k].Vdp[j].Mx * (self.readings[k].Vdp[j].Vp / 1e3))
                     if vs < 0 and self.readings[k].Vdp[j].Vp < 0:
                         Vp = np.abs(self.readings[k].Vdp[j].Vp)
-                        if self.readings[k].Vdp[j].K < 0:
-                            Vp = Vp * -1
                         Vs = self.readings[k].Vdp[j].Vs * -1
                         cnt = cnt + 1
                         mx_a = (mx_a * -1) / (Vp / 1e3)
@@ -1996,6 +2010,64 @@ class Jpatch:
                         # print("{0} VS: {1} & VP: {2}".format(cnt, vs, Vp))
                     chargeability_list.append(mx_a)
         return np.asarray(chargeability_list)
+
+    def getNullFactors(self):
+        """
+        Exports all the coupling factor data
+
+        Output:
+        numpy array [value]
+
+        """
+        null_list = []
+        num_rdg = len(self.readings)
+        for rdg in range(num_rdg):
+            num_dipole = len(self.readings[rdg].Vdp)
+            for dp in range(num_dipole):
+                if self.readings[rdg].Vdp[dp].flagRho == "Accept":
+                    null_list.append(self.readings[rdg].Vdp[dp].coupling)
+        return np.asarray(null_list)
+
+    def getCurrents(self):
+        """
+        Exports all the In data
+
+        Output:
+        numpy array [value]
+
+        """
+        in_list = []
+        num_rdg = len(self.readings)
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if self.readings[k].Vdp[j].flagRho == "Accept":
+                    In = np.abs(self.readings[k].Vdp[j].In)
+                    in_list.append(In)
+        return np.asarray(in_list)
+
+    def getAspacings(self, local=False, direction=None):
+        
+        a_list = []
+        num_rdg = len(self.readings)
+        if local:
+            if direction is not None:
+                for k in range(num_rdg):
+                    num_dipole = len(self.readings[k].Vdp)
+                    for j in range(num_dipole):
+                        if self.readings[k].Vdp[j].flagRho == "Accept":
+                            sep = np.abs(self.readings[k].Vdp[j].getAseperationLocal(direction=direction))
+                            a_list.append(sep)
+            else:
+                print("[OUTPUT]  Please define line direction for local option!!!!!!!!!")
+        else:
+            for k in range(num_rdg):
+                num_dipole = len(self.readings[k].Vdp)
+                for j in range(num_dipole):
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        sep = np.abs(self.readings[k].Vdp[j].getAseperation())
+                        a_list.append(sep)
+        return a_list
 
     def getSources(self, dipole=False):
         """

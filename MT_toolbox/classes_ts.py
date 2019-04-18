@@ -8,7 +8,6 @@ import io_lib
 from classes_z import Z
 import multiprocessing
 
-
 class project:
 
     def __init__(self,
@@ -96,6 +95,20 @@ class project:
                 self.parameters.remote_coherence = float(line.split('remote_coherence=')[1].split('>')[0])
             if 'wavelets=' in line:
                 self.parameters.wavelets = line.split('wavelets=')[1].split('>')[0]
+            if 'central_pulsation=' in line:
+                self.parameters.central_pulsation = float(line.split('central_pulsation=')[1].split('>')[0])
+            if 'min_scale=' in line:
+                self.parameters.min_scale = int(line.split('min_scale=')[1].split('>')[0])
+            if 'max_scale=' in line:
+                self.parameters.max_scale = int(line.split('max_scale=')[1].split('>')[0])
+            if 'dyadic_number=' in line:
+                self.parameters.dyadic_number = int(line.split('dyadic_number=')[1].split('>')[0])
+            if 'correlation_criteria=' in line:
+                self.parameters.correlation_criteria = float(line.split('correlation_criteria=')[1].split('>')[0])
+            if 'min_scale_chain=' in line:
+                self.parameters.min_scale_chain = int(line.split('min_scale_chain=')[1].split('>')[0])
+            if 'max_scale_chain=' in line:
+                self.parameters.max_scale_chain = int(line.split('max_scale_chain=')[1].split('>')[0])
 
         if self.output_level > 0:
             print('[INFO] Parameters section is loaded')
@@ -116,18 +129,42 @@ class project:
             print('[ERROR] Check taper type.')
             var_ex = 1
 
+        if self.parameters.remote_coherence == None:
+            print('[INFO] No coherence thresholding between local and remote has been setup in the parameters files. Will not use.')
+
+        if self.parameters.local_coherence == None:
+            print('[INFO] No coherence thresholding between local output and local input has been setup in the parameters files. Will not use.')
+
+        if self.parameters.central_pulsation == None and self.parameters.wavelets == 'yes':
+            print('[ERROR] Wavelet has been asked for, but no central pulsation has been setup. Use central_pulsation parameter. Recommanded: 6.')
+            var_ex = 1
+
+        if self.parameters.min_scale == None and self.parameters.wavelets == 'yes':
+            print('[ERROR] Wavelet has been asked for, but no minimum scale has been setup. Use min_scale parameter.')
+            var_ex = 1
+
+        if self.parameters.max_scale == None and self.parameters.wavelets == 'yes':
+            print('[ERROR] Wavelet has been asked for, but no maximum scale has been setup. Use min_scale parameter.')
+            var_ex = 1
+
+        if self.parameters.dyadic_number == None and self.parameters.wavelets == 'yes':
+            print('[ERROR] Wavelet has been asked for, but no number of dyadic scale has been setup. Use dyadic_number parameter. Recommanded: 8.')
+            var_ex = 1
+
+        if self.parameters.correlation_criteria == None and self.parameters.wavelets == 'yes':
+            print('[ERROR] Wavelet has been asked for, but no correlation criteria has been setup. Use correlation_criteria parameter. Recommanded: 0.999.')
+            var_ex = 1
+
+        if (self.parameters.min_scale_chain == None or self.parameters.max_scale_chain == None) and self.parameters.wavelets == 'yes':
+            print('[ERROR] Wavelet has been asked for, but no scale chaining has been setup. Use min_scale_chain and max_scale_chain parameter.')
+            var_ex = 1
+
         if var_ex:
             print('Read error messages and correct.')
             sys.exit()
         else:
             print('[INFO] Everything seems good to start reading files. Starting to write log file.')
             self.log_file = self.folder + '/processing.log'
-
-        if self.parameters.remote_coherence == None:
-            print('[INFO] No coherence thresholding between local and remote has been setup in the parameters files. Will not use.')
-
-        if self.parameters.local_coherence == None:
-            print('[INFO] No coherence thresholding between local output and local input has been setup in the parameters files. Will not use.')
 
 
 class station_mt:
@@ -141,7 +178,8 @@ class station_mt:
                 sample_freq=None,
                 log_file=None,
                 location=None,
-                coherence=None):
+                coherence=None,
+                events=None):
 
         self.input = []
         self.output = []
@@ -154,6 +192,7 @@ class station_mt:
         self.log_file = log_file
         self.location = location
         self.coherence = coherence
+        self.events = events
 
     def read_parameters_file_and_load_data(self):
         f_in = open('parameters.inp', 'r')
@@ -162,14 +201,14 @@ class station_mt:
             if '<ex=' in line:
                 tmp = line.split('<ex=')[1].split('>')[0]
                 self.output.append(time_serie(file_name=tmp,
-                                              sample_freq=2048,
+                                              sample_freq=31250,
                                               output_level=self.output_level,
                                               log_file=self.log_file,
                                               type='Ex'))
             if '<ey' in line:
                 tmp = line.split('<ey=')[1].split('>')[0]
                 self.output.append(time_serie(file_name=tmp,
-                                              sample_freq=2048,
+                                              sample_freq=31250,
                                               output_level=self.output_level,
                                               log_file=self.log_file,
                                               type='Ey'))
@@ -177,35 +216,35 @@ class station_mt:
             if '<hz' in line:
                 tmp = line.split('<hz=')[1].split('>')[0]
                 self.output.append(time_serie(file_name=tmp,
-                                              sample_freq=2048,
+                                              sample_freq=31250,
                                               output_level=self.output_level,
                                               log_file=self.log_file,
                                               type='Hz'))
             if '<hx' in line:
                 tmp = line.split('<hx=')[1].split('>')[0]
                 self.input.append(time_serie(file_name=tmp,
-                                             sample_freq=2048,
+                                             sample_freq=31250,
                                              output_level=self.output_level,
                                              log_file=self.log_file,
                                              type='Hx'))
             if '<hy' in line:
                 tmp = line.split('<hy=')[1].split('>')[0]
                 self.input.append(time_serie(file_name=tmp,
-                                             sample_freq=2048,
+                                             sample_freq=31250,
                                              output_level=self.output_level,
                                              log_file=self.log_file,
                                              type='Hy'))
             if '<rx' in line:
                 tmp = line.split('<rx=')[1].split('>')[0]
                 self.ref.append(time_serie(file_name=tmp,
-                                           sample_freq=2048,
+                                           sample_freq=31250,
                                            output_level=self.output_level,
                                            log_file=self.log_file,
                                            type='Rx'))
             if '<ry' in line:
                 tmp = line.split('<ry=')[1].split('>')[0]
                 self.ref.append(time_serie(file_name=tmp,
-                                           sample_freq=2048,
+                                           sample_freq=31250,
                                            output_level=self.output_level,
                                            log_file=self.log_file,
                                            type='Ry'))
@@ -295,24 +334,97 @@ class station_mt:
         self.location = [self.output[0].northing, self.output[0].easting,
                          self.output[0].elevation, self.output[0].zone]
 
-    def get_wavelet_transforms(self):
-        print('[WARNING] Hugo: Needs to parametrize input frequencies. Will do it later.')
-        dyadic_frequencies = wav_lib.dyadic_frequencies(2, 64, 10)
+    def get_wavelet_transforms(self, param):
+        dyadic_frequencies = wav_lib.dyadic_frequencies(param.min_scale, param.max_scale, param.dyadic_number)
         for i in range(len(self.output)):
-            self.output[i].wavelets = wav_lib.wavelet_analysis(self.output[i].data, self.output[i].sample_freq, dyadic_frequencies)
+            self.output[i].wavelets = wavelets(sample_freq=self.output[i].sample_freq,
+                                                wavelet='Morlet',
+                                                data=self.output[i].data,
+                                                frequencies=dyadic_frequencies,
+                                                parameters=param.central_pulsation)
+            self.output[i].wavelets.get_coefficients()
+            self.output[i].wavelets.significant = wav_lib.significant_coefficients(self.output[i].data,
+                           self.output[i].wavelets.coefficients,
+                           self.output[i].sample_freq,
+                           param.central_pulsation,
+                           dyadic_frequencies,
+                           0.70)
         for i in range(len(self.input)):
-            self.input[i].wavelets = wav_lib.wavelet_analysis(self.input[i].data, self.input[i].sample_freq, dyadic_frequencies)
-            fig, ax1 = plt.subplots(1, 1)
-            ax1.imshow(self.input[i].wavelets.transpose(), aspect='auto', cmap='jet')
+            self.input[i].wavelets = wavelets(sample_freq=self.input[i].sample_freq,
+                                              wavelet='Morlet',
+                                              data=self.input[i].data,
+                                              frequencies=dyadic_frequencies,
+                                              parameters=param.central_pulsation)
+            self.input[i].wavelets.get_coefficients()
+
+
+            self.input[i].wavelets.significant = wav_lib.significant_coefficients(self.input[i].data,
+                           self.input[i].wavelets.coefficients,
+                           self.input[i].sample_freq,
+                           param.central_pulsation,
+                           dyadic_frequencies,
+                           0.70)
+            fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+            print(len(self.input[i].wavelets.coefficients[0, :]))
+
+            #ax1.plot(self.input[i].data)
+            ax2.imshow(np.abs(self.input[i].wavelets.coefficients), aspect='auto')
+            plt.show()
+
+        for i in range(len(self.ref)):
+            self.ref[i].wavelets = wavelets(sample_freq=self.ref[i].sample_freq,
+                                            wavelet='Morlet',
+                                            data=self.ref[i].data,
+                                            frequencies=dyadic_frequencies,
+                                            parameters=param.central_pulsation)
+            self.ref[i].wavelets.get_coefficients()
+            self.ref[i].wavelets.significant = wav_lib.significant_coefficients(self.ref[i].data,
+                           self.ref[i].wavelets.coefficients,
+                           self.ref[i].sample_freq,
+                           param.central_pulsation,
+                           dyadic_frequencies,
+                           0.70)
+
+
+    def detect_elf(self, param):
+        dyadic_frequencies = wav_lib.dyadic_frequencies(param.min_scale, param.max_scale, param.dyadic_number)
+        distances = wav_lib.morlet_correlation_distance(param.central_pulsation,
+                                                        dyadic_frequencies,
+                                                        self.output[0].wavelets.sample_freq,
+                                                        param.correlation_criteria)
+
+        # Get local maxima and chain the maxima for each channel
+        for i in range(len(self.output)):
+            self.output[i].wavelets.get_local_maxima()
+            self.output[i].wavelets.chain_maxima(distances, param)
+        for i in range(len(self.input)):
+            self.input[i].wavelets.get_local_maxima()
+            print((self.input[i].wavelets.maxima[:, -1]))
+            self.input[i].wavelets.chain_maxima(distances, param)
+            fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+            ax1.plot(self.input[i].data)
+            ax2.imshow(np.abs(self.input[i].wavelets.significant), aspect='auto')
+            for chain in self.input[i].wavelets.chains:
+                ax2.plot([chain[k] for k in range(len(chain)) if not np.isnan(chain[k])],
+                          [k for k in range(len(chain)) if not np.isnan(chain[k])], 'r')
             plt.show()
         for i in range(len(self.ref)):
-            self.ref[i].wavelets = wav_lib.wavelet_analysis(self.ref[i].data, self.ref[i].sample_freq, dyadic_frequencies)
+            self.ref[i].wavelets.get_local_maxima()
+            self.ref[i].wavelets.chain_maxima(distances, param)
+
+        # Get common maxima chains, # naive approach
+        self.events = wav_lib.get_events([self.output[i].wavelets.chains for i in range(len(self.output))],
+                                         [self.input[i].wavelets.chains for i in range(len(self.input))],
+                                         [self.ref[i].wavelets.chains for i in range(len(self.ref))],
+                                         distances)
+
+        # Get
 
     def plot(self):
 
         fig, (ax0, ax1, ax2, ax3, ax4, ax5) = plt.subplots(6, 1, sharex=True)
         ax0.plot(self.output[0].data)
-        ax1.plot(self.output[1].data)
+        #ax1.plot(self.output[1].data)
         ax2.plot(self.input[0].data)
         ax3.plot(self.input[1].data)
         ax4.plot(self.ref[0].data)
@@ -321,18 +433,39 @@ class station_mt:
 
 
     def apply_taper(self, param):
+
         for i in range(len(self.output)):
-            self.output[i].segment_data(param)
+            try:
+                if self.events:
+                    self.output[i].segment_data_wavelets(param, self.events[0])
+                else:
+                    self.output[i].segment_data(param)
+            except:
+                self.output[i].segment_data(param)
             self.output[i].taper_segments(param)
             self.output[i].get_fft_segments()
 
         for i in range(len(self.input)):
-            self.input[i].segment_data(param)
+            try:
+                if self.events:
+                    self.input[i].segment_data_wavelets(param, self.events[0])
+                else:
+                    self.input[i].segment_data(param)
+            except:
+                self.input[i].segment_data(param)
+            #self.input[i].segment_data(param)
             self.input[i].taper_segments(param)
             self.input[i].get_fft_segments()
 
         for i in range(len(self.ref)):
-            self.ref[i].segment_data(param)
+            try:
+                if self.events:
+                    self.ref[i].segment_data_wavelets(param, self.events[0])
+                else:
+                    self.ref[i].segment_data(param)
+            except:
+                self.ref[i].segment_data(param)
+            #self.ref[i].segment_data(param)
             self.ref[i].taper_segments(param)
             self.ref[i].get_fft_segments()
 
@@ -396,9 +529,9 @@ class station_mt:
 
         max_number_processes = multiprocessing.cpu_count()
         #pool = multiprocessing.Pool(max_number_processes - 20)
-        pool = multiprocessing.Pool(2)
+        pool = multiprocessing.Pool(8)
         r = []
-        
+
         print("\tStarting workers pool: " + str(2) + " workers working on robust regressions.")
         for ind in range(param.nb_increment):
             index = param.index_first_frequency + ind * param.frequency_increment
@@ -440,7 +573,7 @@ class station_mt:
                 self.tensor.error[channel, step * param.nb_increment + ind, :] = tmp[1]
 
         """
-        ### SERIAL
+        ### SERIAL FOR DEBUG
         for ind in range(param.nb_increment):
             print('\t[INFO] Frequency increment ' + str(ind + 1) + '/' + str(param.nb_increment))
             index = param.index_first_frequency + ind * param.frequency_increment
@@ -457,7 +590,6 @@ class station_mt:
         """
     def rotate_station(self, angle):
         print('TODO')
-
 
 
     def write_tensor(self, project):
@@ -486,39 +618,39 @@ class station_mt:
         if project.type == 'Z':
             fOut.write('#Tensor type: Impedance (Real and Imaginary)\n')
             fOut.write('#Units: Frequency [Hz], Z [mV/km/nT]\n')
-            columns = ['#Frequency', 'R Zxx',
-                        'R Zxy', 'R Zyx',
-                        'R Zyy', 'I Zxx',
-                        'I Zxy', 'R Zyxr',
-                        'I Zyy', 'STD Zxx',
-                        'STD Zxy', 'STD Zyx',
-                        'STD Zyy']
+            columns = ['#Frequency', 'R_Zxx',
+                        'R_Zxy', 'R_Zyx',
+                        'R_Zyy', 'I_Zxx',
+                        'I_Zxy', 'R_Zyxr',
+                        'I_Zyy', 'STD_Zxx',
+                        'STD_Zxy', 'STD_Zyx',
+                        'STD_Zyy']
             for item in columns:
                 fOut.write('{:>15}'.format(item))
             fOut.write('\n')
         if project.type == 'T':
             fOut.write('Tensor type: Tipper\n')
             fOut.write('#Units: T []\n')
-            columns = ['#Frequency', 'R Tx',
-                        'I Tx', 'R Ty',
-                        'I Ty', 'STD Tx',
-                        'STD Ty']
+            columns = ['#Frequency', 'R_Tx',
+                        'I_Tx', 'R_Ty',
+                        'I_Ty', 'STD_Tx',
+                        'STD_Ty']
             for item in columns:
                 fOut.write('{:>15}'.format(item))
             fOut.write('\n')
         if project.type == 'Full':
             fOut.write('Tensor type: Full tensor (Impedance + Tipper)\n')
             fOut.write('#Units: Frequency [Hz], Z [mV/km/nT], T []\n')
-            columns = ['#Frequency', 'R Zxx',
-                        'R Zxy', 'R Zyx',
-                        'R Zyy', 'R Tx',
-                        'R Ty', 'I Zxx',
-                        'I Zxy', 'R Zyxr',
-                        'I Zyy', 'I Tx',
-                        'I Ty', 'STD Zxx',
-                        'STD Zxy', 'STD Zyx',
-                        'STD Zyy', 'STD Tx',
-                        'STD Ty']
+            columns = ['#Frequency', 'R_Zxx',
+                        'R_Zxy', 'R_Zyx',
+                        'R_Zyy', 'R_Tx',
+                        'R_Ty', 'I_Zxx',
+                        'I_Zxy', 'R_Zyxr',
+                        'I_Zyy', 'I_Tx',
+                        'I_Ty', 'STD_Zxx',
+                        'STD_Zxy', 'STD_Zyx',
+                        'STD_Zyy', 'STD_Tx',
+                        'STD_Ty']
             for item in columns:
                 fOut.write('{:>15}'.format(item))
             fOut.write('\n')
@@ -544,11 +676,11 @@ class station_mt:
                         'Rho_xy', 'Rho_yx',
                         'Rho_yy', 'Phase_xx',
                         'Phase_xy', 'Phase_yx',
-                        'Phase_yy', 'STD Rho_xx',
-                        'STD Rho_xy', 'STD Rho_yx',
-                        'STD Rho_yy', 'STD Phase_xx',
-                        'STD Phase_xy', 'STD Phase_yx',
-                        'STD Phase_yy']
+                        'Phase_yy', 'STD_Rho_xx',
+                        'STD_Rho_xy', 'STD_Rho_yx',
+                        'STD_Rho_yy', 'STD_Phase_xx',
+                        'STD_Phase_xy', 'STD_Phase_yx',
+                        'STD_Phase_yy']
             for item in columns:
                 fOut.write('{:>15}'.format(item))
             fOut.write('\n')
@@ -571,6 +703,7 @@ class station_mt:
                 fOut.write('\n')
         fOut.close()
 
+
 class parameters:
 
     def __init__(self,
@@ -588,7 +721,14 @@ class parameters:
                 error=None,
                 local_coherence=None,
                 remote_coherence=None,
-                wavelets=None):
+                wavelets=None,
+                central_pulsation=None,
+                min_scale=None,
+                max_scale=None,
+                dyadic_number=None,
+                correlation_criteria=None,
+                min_scale_chain=None,
+                max_scale_chain=None,):
         self.output = output
         self.nfft = nfft
         self.tbw = tbw
@@ -603,6 +743,13 @@ class parameters:
         self.local_coherence = local_coherence
         self.remote_coherence = remote_coherence
         self.wavelets = wavelets
+        self.central_pulsation = central_pulsation
+        self.min_scale = min_scale
+        self.max_scale = max_scale
+        self.dyadic_number = dyadic_number
+        self.correlation_criteria = correlation_criteria
+        self.min_scale_chain = min_scale_chain
+        self.max_scale_chain = max_scale_chain
 
 
 class step_parameters:
@@ -689,8 +836,8 @@ class time_serie:
 
     def load_data(self):
         try:
-            self.data=io_lib.read_binary_file(self.file_name)
-            #self.data=io_lib.read_ascii_file(self.file_name)
+            #self.data=io_lib.read_binary_file(self.file_name)
+            self.data=io_lib.read_ascii_file(self.file_name)
         except:
             print('[ERROR] Something went wrong while loading the file ' + self.file_name)
             sys.exit()
@@ -702,6 +849,13 @@ class time_serie:
 
         for ind in range(n_windows):
             self.segments.append(self.data[n_overlap * ind:n_overlap * ind + parameters.nfft])
+
+    def segment_data_wavelets(self, parameters, events):
+        self.segments = []
+        for event in events:
+            if event - parameters.nfft / 2 >= 0 and event + parameters.nfft / 2 < len(self.data):
+                self.segments.append(self.data[event - int(parameters.nfft / 2):event - int(parameters.nfft / 2) + parameters.nfft])
+
 
     def taper_segments(self, parameters):
         if len(self.segments):
@@ -724,3 +878,44 @@ class time_serie:
             array_spectral[i] = segment[index]
 
         return array_spectral
+
+
+class wavelets:
+    def __init__(self,
+                sample_freq=None,
+                wavelet=None,
+                frequencies=None,
+                scales=None,
+                parameters=None,
+                data=None,
+                coefficients=None,
+                maxima=None,
+                chains=None,
+                significant=None):
+
+        self.sample_freq = sample_freq
+        self.wavelet = wavelet
+        self.frequencies = frequencies
+        self.scales = scales
+        self.data = data
+        self.parameters = parameters
+        self.coefficients = coefficients
+        self.maxima = maxima
+        self.chains = chains
+        self.significant = significant
+
+    def get_scales(self):
+        self.scales = wav_lib.get_scales(self.frequencies, self.parameters)
+
+    def get_coefficients(self):
+        self.coefficients = wav_lib.wavelet_analysis(self.data, self.sample_freq, self.frequencies, self.parameters)
+
+    def get_local_maxima(self):
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        ax2.imshow(np.abs(self.coefficients), aspect='auto')
+        plt.show()
+        self.maxima = wav_lib.local_maxima(np.abs(self.significant))
+
+    def chain_maxima(self, distances, param):
+        self.chains = wav_lib.chains_maxima(np.abs(self.maxima), distances, self.frequencies, [param.max_scale_chain, param.min_scale_chain])

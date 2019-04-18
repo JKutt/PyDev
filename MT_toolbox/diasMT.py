@@ -48,7 +48,7 @@ if __name__ == '__main__':
     station.read_parameters_file_and_load_data()
     station.check_station(project.type)
     if project.parameters.wavelets == 'yes':
-        station.get_wavelet_transforms()
+        station.get_wavelet_transforms(project.parameters)
 
     if args.test:
         print('[INFO] Test option was selected. Exiting now...')
@@ -61,6 +61,16 @@ if __name__ == '__main__':
 
     regression_time = time.time()
     if args.compute:
+        if project.parameters.wavelets == 'yes':
+            print('[INFO] Wavelets selected. Now detecting EM waves before starting response function computation.')
+            station.detect_elf(project.parameters)
+            print('[INFO] ' + str(len(station.events[0])) + ' events detected.')
+            #print(len(station.events[0]))
+            for time_tmp in station.events[0]:
+                plt.plot(station.input[0].data[time_tmp - 100:time_tmp+100])
+                plt.plot(station.input[1].data[time_tmp - 100:time_tmp+100], 'r')
+                plt.show()
+
         print('[INFO] Now starting computation of response functions.')
         print('       According to the given parameters, I have ' + str(project.parameters.nb_reductions + 1) + ' iterations to perform.')
         station.load_frequencies(project.parameters)
@@ -75,9 +85,10 @@ if __name__ == '__main__':
             station.recover_Z(step, project.parameters)
             if step < project.parameters.nb_reductions:
                 print('[INFO] Iteration ' + str(step + 1) + ' done. Reducing base window length to: ' + str(int(step_param.nfft / (project.parameters.length_reduction))))
-        print('[INFO] Response function computation done.')
+            print('[INFO] Response function computation done.')
         print("[INFO_TIME] Elapsed time for robust regression: " + str(time.time() - regression_time) + ' seconds.')
         print('[INFO] Now writing output file.')
         station.write_tensor(project)
         station.tensor.plot_tensor()
-        station.tensor.plot_tensor_res_phase()
+        if len(station.output) > 1: # 
+            station.tensor.plot_tensor_res_phase()

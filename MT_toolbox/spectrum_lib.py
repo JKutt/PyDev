@@ -161,7 +161,7 @@ def robust_regression(output, input, ref, output_level):
         print("\t\t\t[INFO_TIME] Elapsed time for error calculation: " + str(time.time() - s_time) + ' seconds.')
 
     count = 0 # counter to prevent infinite loop if unbalanced regression
-    while count < 10: # Robust regression loop
+    while count < 50: # Robust regression loop
         if output_level > 0:
             print('\t[INFO] Robust regression. Iteration ' + str(count))
         sum_error_pre = sum_error
@@ -446,3 +446,23 @@ def hat_matrix(input, weights):
     hat = input_tiled_x * arg1 + input_tiled_y * arg2
 
     return hat
+
+
+def fourier_surrogate(signal, sample_freq):
+
+    N = len(signal)
+    freq_array = np.linspace(0, sample_freq, N)
+
+    signal_fourier = np.fft.fft(signal)
+    signal_fourier = signal_fourier[1:int(N / 2) + 1]
+
+    amplitudes = np.abs(signal_fourier)
+    phase = np.random.uniform(size=len(freq_array[1:int(N / 2.) + 1])) * 2 * np.pi
+    signal_fourier = np.asarray(amplitudes * np.exp(-1 * np.complex(0, 1) * phase))
+    signal_fourier = np.concatenate([signal_fourier, np.conjugate(np.flipud(signal_fourier[:-1]))])
+    signal_fourier = np.concatenate([np.asarray([0. + np.complex(0, 1) * 0.]), signal_fourier])
+    signal_fourier[int(len(signal_fourier) / 2)] = np.real(signal_fourier[int(len(signal_fourier) / 2)])
+
+    signal_fourier_temporal = np.real(np.fft.ifft(signal_fourier))
+
+    return signal_fourier_temporal

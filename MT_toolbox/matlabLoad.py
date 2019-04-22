@@ -4,7 +4,7 @@ import DCIPtools as DCIP
 import h5py
 """
    NOTES
-   Matlab database contains variables Line30 which has
+   Matlab database contains line variables which has
    following attributes:
 
    acc_DAS
@@ -22,6 +22,8 @@ import h5py
 
 # filepath to the matlab database
 file_path = "E:/Projects/Qmag/IPHT/Line30_20190328_211621.mat"
+output_path = 'E:/Projects/Qmag/IPHT'
+lines_to_extract = 2
 
 # load the database
 f = h5py.File(file_path)
@@ -30,79 +32,156 @@ f = h5py.File(file_path)
 # print(list(f.keys()))  # this what gave me the Line30 path
 # f['Line30'].visititems(lambda n,o:print(n, o))
 
+# get the data id
+lines = list(f.keys())[1]
+
 # =============================================================
-# weird loading data stuff =====================================
+# Lat long data retrieve ====================================
+
+# Id tag for latitude
+lati_id = lines + '/lat'
+# Id tag for longitude
+longi_id = lines + '/lat'
+# altitude id tage
+alti_id = lines + '/alt'
 
 # get the latitude data
-lat_convert = f.get('Line30/lat')
-lat_id = lat_convert[0][0]
-lat = f[lat_id][0]
-# get longitude data
-lon_convert = f.get('Line30/lon')
-lon_id = lon_convert[0][0]
-lon = f[lon_id][0]
+lat_convert = f.get(lati_id)
+# get longitude
+lon_convert = f.get(longi_id)
+# get longitude
+alt_convert = f.get(alti_id)
+# create list to hold the data
+lon_list = []
+lat_list = []
+alt_list = []
+# retrieve data
+for idx in range(lines_to_extract):
+    lon_id = lon_convert[idx][0]
+    lon_list.append(f[lon_id][0])
+    lat_id = lat_convert[idx][0]
+    lat_list.append(f[lat_id][0])
+    alt_id = alt_convert[idx][0]
+    alt_list.append(f[alt_id][0])
 
-# get the reduced rotated data
-mag_reduced_rotated_convert = f.get('Line30/mag_temp_red_rot')
-mag_reduced_rotated_id = mag_reduced_rotated_convert[0][0]
-# create a nD X 3
-mag_reduced_rotated = f[mag_reduced_rotated_id]
+
+# ==========================================================
+# get the reduced rotated data =============================
+
+# mag data Id
+mag_red_rot_id = lines + '/mag_temp_red_rot'
+mag_reduced_rotated_convert = f.get(mag_red_rot_id)
+# # create a nD X 3
+mag_reduced_rotated = []
+for idx in range(lines_to_extract):
+    mag_reduced_rotated_id = mag_reduced_rotated_convert[idx][0]
+    mag_reduced_rotated.append(f[mag_reduced_rotated_id])
 
 # get high gain mag
-mag_high_gain_convert = f.get('Line30/mag_high')
-mag_high_gain_id = mag_high_gain_convert[0][0]
-# create a nD X 3
-mag_high_gain = f[mag_high_gain_id]
+# mag_high_gain_convert = f.get('Line30/mag_high')
+# mag_high_gain_id = mag_high_gain_convert[0][0]
+# # create a nD X 3
+# mag_high_gain = f[mag_high_gain_id]
 
-# get low gain mag
-mag_low_gain_convert = f.get('Line30/mag_low')
-mag_low_gain_id = mag_low_gain_convert[0][0]
-# create a nD X 3
-mag_low_gain = f[mag_low_gain_id]
+# # get low gain mag
+# mag_low_gain_convert = f.get('Line30/mag_low')
+# mag_low_gain_id = mag_low_gain_convert[0][0]
+# # create a nD X 3
+# mag_low_gain = f[mag_low_gain_id]
 
-# get mag temp?
-mag_temp_convert = f.get('Line30/mag_temp')
-mag_temp_id = mag_temp_convert[0][0]
-# create a nD X 3
-mag_temp = f[mag_temp_id]
+# # get mag temp?
+# mag_temp_convert = f.get('Line30/mag_temp')
+# mag_temp_id = mag_temp_convert[0][0]
+# # create a nD X 3
+# mag_temp = f[mag_temp_id]
+# # create a nD X 3
+# mag_temp = f[mag_temp_id]
 
-plt.plot(lon, lat)
-plt.title("coordinates (long vs lat)")
-plt.show()
+# =========================================================
+# retrieve IMU data =======================================
 
-fig = plt.figure()
-ax1 = fig.add_subplot(311)
-ax2 = fig.add_subplot(312, sharex=ax1, sharey=ax1)
-ax3 = fig.add_subplot(313, sharex=ax1, sharey=ax1)
-ax1.set_title("X")
-ax2.set_title("Y")
-ax3.set_title("Z-")
+# gyros DAS id
+gyros_das_id = lines + '/gyros_DAS'
+# accelerations DAS id
+acc_das_id = lines + '/acc_DAS'
+# DAS attitudes id
+att_das_id = lines + '/att_DAS'
+# gyros uIMU id
+gyros_imu_id = lines + '/gyros_uimu'
+# accelerations uIMU id
+acc_imu_id = lines + '/acc_uimu'
+# gyros DAS id
+att_imu_id = lines + '/att_DAS'
 
-ax1.plot(mag_reduced_rotated[0], 'r')
-ax2.plot(mag_reduced_rotated[1], 'g')
-ax3.plot(mag_reduced_rotated[2], 'b')
+gyros_das_convert = f.get(gyros_das_id)
+acc_das_convert = f.get(acc_das_id)
+att_das_convert = f.get(att_das_id)
+gyros_imu_convert = f.get(gyros_imu_id)
+acc_imu_convert = f.get(acc_imu_id)
+att_imu_convert = f.get(att_imu_id)
 
-# ax1.plot(mag_high_gain[0], 'k')
-# ax2.plot(mag_high_gain[1], 'c')
-# ax3.plot(mag_high_gain[2], 'm')
+gyro_das = []
+acc_das = []
+att_das = []
+gyro_imu = []
+acc_imu = []
+att_imu = []
 
-# ax1.plot(mag_low_gain[0], '-.k')
-# ax2.plot(mag_low_gain[1], '-.c')
-# ax3.plot(mag_low_gain[2], '-.m')
+for idx in range(lines_to_extract):
+    gyro_das_id = gyros_das_convert[idx][0]
+    gyro_das.append(f[gyro_das_id])
+    acceleratrions_das_id = acc_das_convert[idx][0]
+    acc_das.append(f[acceleratrions_das_id])
+    attitude_das_id = att_das_convert[idx][0]
+    att_das.append(f[attitude_das_id])
 
-# ax1.plot(mag_temp[0], '.k')
-# ax2.plot(mag_temp[1], '.c')
-# ax3.plot(mag_temp[2], '.m')
+    gyro_imu_id = gyros_imu_convert[idx][0]
+    gyro_imu.append(f[gyro_das_id])
+    acceleratrions_imu_id = acc_imu_convert[idx][0]
+    acc_imu.append(f[acceleratrions_imu_id])
+    attitude_imu_id = att_imu_convert[idx][0]
+    att_imu.append(f[attitude_imu_id])
 
-plt.show()
+# ======================================================================
+# write a files =========================================================
+for idx in range(lines_to_extract):
+    lat_out = np.asarray(lat_list[idx])
+    lat_path = output_path + '/lat' + str(idx + 1) + '.npy'
+    np.save(lat_path, lat_out)
+    lon_path = output_path + '/lon' + str(idx + 1) + '.npy'
+    lon_out = np.asarray(lon_list[idx])
+    np.save(lon_path, lon_out)
+    alt_path = output_path + '/alt' + str(idx + 1) + '.npy'
+    alt_out = np.asarray(alt_list[idx])
+    np.save(alt_path, alt_out)
+    data_path = output_path + '/mag_data_line' + str(idx + 1) + '.npy'
+    data_out = np.asarray(mag_reduced_rotated[idx])
+    np.save(data_path, data_out)
 
-# padd = DCIP.padNextPower2(np.asarray(mag_reduced_rotated[1]))
-# padd_fft = DCIP.getSpectralDensity(padd)
-# freqs = np.arange(0, padd_fft.size) * (31250. / padd_fft.size)
-# plt.semilogy(freqs[0:int(padd_fft.size/2)], padd_fft[0:int(padd_fft.size/2)])
+    gyro_das_path = output_path + '/gyro_das_line' + str(idx + 1) + '.npy'
+    gyro_das_out = np.asarray(gyro_das[idx])
+    np.save(gyro_das_path, gyro_das_out)
+    acc_das_path = output_path + '/acc_das_line' + str(idx + 1) + '.npy'
+    acc_das_out = np.asarray(acc_das[idx])
+    np.save(acc_das_path, acc_das_out)
+    att_das_path = output_path + '/att_das_line' + str(idx + 1) + '.npy'
+    att_das_out = np.asarray(att_das[idx])
+    np.save(att_das_path, att_das_out)
+
+    gyro_imu_path = output_path + '/gyro_imu_line' + str(idx + 1) + '.npy'
+    gyro_imu_out = np.asarray(gyro_imu[idx])
+    np.save(gyro_imu_path, gyro_imu_out)
+    acc_imu_path = output_path + '/acc_imu_line' + str(idx + 1) + '.npy'
+    acc_imu_out = np.asarray(acc_imu[idx])
+    np.save(acc_imu_path, acc_imu_out)
+    att_imu_path = output_path + '/att_imu_line' + str(idx + 1) + '.npy'
+    att_imu_out = np.asarray(att_imu[idx])
+    np.save(att_imu_path, att_imu_out)
+
+# Plotting ========================================
+# print(len(acc_imu[0][0]))
+# for idx in range(lines_to_extract):
+#     # plt.plot(lon_list[idx], lat_list[idx])
+#     plt.plot(acc_imu[0][0], acc_imu[0][1], 'ro')
+# plt.title("coordinates (long vs lat)")
 # plt.show()
-# write a file
-# lat_out = np.asarray(lat)
-# np.save('E:/Projects/Qmag/IPHT/lat.npy', lat_out)
-# lon_out = np.asarray(lon)
-# np.save('E:/Projects/Qmag/IPHT/lon.npy', lon_out)

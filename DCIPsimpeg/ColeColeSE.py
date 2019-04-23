@@ -15,7 +15,6 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
     nLoc = survey_ip.dobs.T[tinds, :].shape[1]
     # Setup wire for different properties
     wires = Maps.Wires(('eta', nLoc), ('tau', nLoc), ('c', nLoc))
-
     taumap = Maps.ExpMap(nP=nLoc) * wires.tau
     etamap = Maps.ExpMap(nP=nLoc) * wires.eta
     cmap = Maps.ExpMap(nP=nLoc) * wires.c
@@ -33,6 +32,7 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
 
     # Set initial model
     eta0, tau0, c0 = abs(survey_ip.dobs.T[0, :].T), 1. * np.ones(nLoc), 1. * np.ones(nLoc)
+
     m0 = np.r_[np.log(eta0), np.log(tau0), np.log(c0)]
     std = 0.02
 
@@ -120,9 +120,9 @@ def fitWithStretchedExponetial(time, survey_ip, sources, Rho, start_time=None):
 # == Ver. 0.2
 # ================================== User Area ==================
 # File name
-fname = "E:/Projects/debug/Gunjan/L15_200-1200snapped.DAT"
+fname = "E:/Projects/debug/Charlotte/L4300_Final_All_NW.DAT"
 # title of output file
-outname = "E:/Projects/debug/Gunjan/L15_200-1200snapped-CC.DAT"
+outname = "E:/Projects/debug/Charlotte/L4300_Final_All_NW-CC.DAT"
 # load the data file
 patch = DCIP.loadDias(fname)
 # create simpeg survey Object
@@ -142,5 +142,5 @@ inds_active = patch.getActiveIndicies(reject="Mx")
 eta, tau, c, error = fitWithStretchedExponetial(time, survey_ip, injections,
                                                 app_rho, start_time)
 # write data to file
-patch.writeColeColeDat(eta, tau, c, error, inds_active, outname,
-                       start_time, end_time)
+# patch.writeColeColeDat(eta, tau, c, error, inds_active, outname,
+#                        start_time, end_time)

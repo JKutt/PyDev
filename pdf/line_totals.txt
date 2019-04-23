@@ -1,1 +1,56 @@
-L1050 - 1800 to 1450 = 7 injections at 50m spacing.
+2019-02-01 -- Line 1800 (1000-2600) 26injections and 7 repeats ||| DGPS Line1500 (half) ; Line1600 (complete) ; Line1700(complete) ; Line1800 (2/3)Page 1 of 
+
+2019-02-02 -- Line 1900 (1000-2650) 26injections and 6repeats
+
+2019-02-03 -- Line 2600 (1000-2650) 26 injections and 7 repeats
+
+2019-02-04 -- Line 2100 (1000-2650) 26injections and 8 repeats ||| DGPS completed on lines 1800, 1900, 2000, 2100Page 1 of 
+
+2019-02-05 -- Line 2200 (1000-2650) 26 injections and 9repeats
+
+2019-02-06 -- Line 2300 (1000-2150) 20 injections and 9 repeats
+
+2019-02-07 -- Line2300 (2200-2650) 6injections and 1repeat ||| Line2400 (1000-2650) 26injections and 8repeats
+
+2019-02-08 -- 32 total injections ||| Line 2500 (1000-2650) 26injections and 9repeats ||| Line 2600 (1000-1650) 10 injections
+
+2019-02-09 -- Line 2600 (1700-2650) 16injections and 7repeats ||| Line 2700 (1000-1700) 11injections and 1 repeat
+
+2019-02-10 -- Line 2700 (1750-2650) 15injections and 5repeats ||| Line 2800 (1000-1850) 13injections and 1repeat
+
+2019-02-11 -- Line2800 (1850-2650) 13injections and 7repeats ||| Line2900 (1000-2200) 21injections and 5repeatsPage 1 of 
+
+2019-02-12 -- Line 2900 (2250-2650) 5injections and 1repeat ||| Line3000 (1000-2650) 26injections and 5repeat
+
+2019-02-13 -- Two complete lines ||| Line 3100 (1000-2650) 26injections and 5repeats ||| Line 3200 (1000-2650) 26injectionsand 1repeatPage 1 of 
+
+2019-02-14 -- Injections completed yesterday . All wire and nodes picked up off grid. DGPS is all complete.
+
+2019-02-15 -- Wrapped up remaining wire and packed up gear
+
+2019-02-16 -- De-mob
+
+2019-01-20 -- 5.5 lines of nodes have been placed and tested for contact resistance. Test injections were conducted.
+
+2019-01-21 -- Two nodes placed on line 1100. 100m of wire placed on line 1600.
+
+2019-01-22 -- 13 injections with 8 repeats because of over-voltage nodes next to injection sitesPage 1 of 
+
+2019-01-23 -- Line 1000 - stations1850 to 2650 (13 injections and 8repeats) ||| Line1100 - stations1000 to 1800 (13 injectionsand 8repeats)
+
+2019-01-24 -- Line 1100 - 13injections (1850-2650) and 6repeats ||| Line 1200 - 12injections (1000-1750) and 5repeats
+
+2019-01-25 -- Injections on Line1200 (1800-2050) 6injections and 2 repeatsPage 1 of 
+
+2019-01-26 -- 1.7Line1300 (1000-2350) 23injections and 10repeats ||| line1200 (2100-2650) 8injections and 4repeats
+
+2019-01-27 -- L1300 (2450-2650) 3 injections ||| L1400 (1000-2200) 21 injections and 11 repeatsPage 1 of 
+
+2019-01-28 -- Line1400 5injections and 1 repeat (2250-2650) ||| Line1500 12injections and 4repeats (1000-1750)
+
+2019-01-29 -- Line 1500 (1800-2650) 14injections and 10repeats ||| Line 1600 (1000-1400) 5injections
+
+2019-01-30 -- Line 1600 (1450-2450) 19injections with 10 repeats
+
+2019-01-31 -- Line1600 2injections (2550-2650) ||| Line1700 26injections and 9injections (1000-2650)
+

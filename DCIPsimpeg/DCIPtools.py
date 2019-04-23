@@ -9,6 +9,7 @@ from scipy import signal
 from scipy.special import factorial
 from SimPEG.EM.Static import DC
 import properties
+from numpy import genfromtxt
 ##################################################
 # DCIPtools Version 1.0  April 2019
 
@@ -906,6 +907,55 @@ def getPrimaryVoltage(start, end, stack):
 
         return Vp
 
+def loadCsvDem(filepath):
+    my_data = genfromtxt(filepath, delimiter=',', skip_header=1)
+    utms = np.vstack((my_data[:, 2], my_data[:, 3]))
+    elevations = my_data[:, 4] 
+    grid = np.vstack((my_data[:, 0], my_data[:, 1]))
+    return utms, grid, elevations
+
+def plotCsvDemLocationDifferences(local=None, utm=None):
+    if local is None or utm is None:
+        print("[INFO] Please provide Locations of DEM!!!!")
+    else:
+        delta_gridx = local[0, 1:] - local[0, :-1]
+        delta_gridy = local[1, 1:] - local[1, :-1]
+        delta_utmx = utm[0, 1:] - utm[0, :-1]
+        delta_utmy = utm[1, 1:] - utm[1, :-1]
+
+        fig = plt.figure()
+        ax1 = fig.add_subplot(221)
+        ax2 = fig.add_subplot(222)
+        ax3 = fig.add_subplot(223)
+        ax4 = fig.add_subplot(224)
+
+        ax1.plot(delta_gridx, '.')
+        ax2.plot(delta_gridy, '.')
+        ax3.plot(delta_utmx, '.')
+        ax4.plot(delta_utmy, '.')
+
+        ax1.set_title('Grid X difference')
+        ax2.set_title('Grid Y difference')
+        ax3.set_title('Easting difference')
+        ax4.set_title('Northing difference')
+        plt.show()
+
+def plotLocalAndUtmGrids(local=None, utm=None):
+    if local is None or utm is None:
+        print("[INFO] Please provide locations info!!!")
+    else:
+        fig = plt.figure()
+        ax1 = fig.add_subplot(211)
+        ax2 = fig.add_subplot(212)
+        ax1.plot(local[0, :], local[1, :], '.')
+        ax2.plot(utm[0, :], utm[1, :], '.')
+        ax1.set_title('Local Grid Coords.')
+        ax1.set_xlabel('X (m)')
+        ax1.set_ylabel('Y (m)')
+        ax2.set_xlabel('Easting (m)')
+        ax2.set_ylabel('Northing (m)')
+        ax2.set_title('UTM Coords.')
+        plt.show()
 
 def loadDias(fileName):
     """
@@ -1311,8 +1361,14 @@ class JvoltDipole:
         Vp = self.Vp
         # print("Vp: {0}".format(self.Vp))
         rho = (Vp / self.In) * 2 * np.pi * gf
-        self.Rho = rho
+        # self.Rho = rho
         return rho
+
+    def calcMx(self, window_widths, start, stop):
+        widths = window_widths[start:stop]
+        vs_ = self.Vs[start:stop]
+        mx_calc = np.sum(vs_ * widths) / np.sum(widths)
+        return mx_calc / (self.Vp / 1000.0) 
 
 
 class Jreading:
@@ -1778,7 +1834,7 @@ class Jpatch:
                     else:
                         out_file.write('%12.4f\n' % (self.readings[rec].Vdp[dp].Vs[win]))
 
-    def getApparentResistivity(self, reject="Rho"):
+    def getApparentResistivity(self, reject="app_rho", calc=True):
         """
         Exports all the apparent resistivity data
 
@@ -1791,18 +1847,26 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if reject is "Rho":
+                if reject is "app_rho":
                     if self.readings[k].Vdp[j].flagRho == "Accept":
-                        rho_a = self.readings[k].Vdp[j].calcRho(self.readings[k].Idp)
-                        resistivity_list.append(rho_a)
-                elif reject is "Mx":
+                        if calc:
+                            rho_a = self.readings[k].Vdp[j].calcRho(self.readings[k].Idp)
+                            resistivity_list.append(rho_a)
+                        else:
+                            rho_a = self.readings[k].Vdp[j].Rho
+                            resistivity_list.append(rho_a)
+                elif reject is "app_mx":
                     if self.readings[k].Vdp[j].flagMx == "Accept":
-                        rho_a = self.readings[k].Vdp[j].calcRho(self.readings[k].Idp)
-                        resistivity_list.append(rho_a)
+                        if calc:
+                            rho_a = self.readings[k].Vdp[j].calcRho(self.readings[k].Idp)
+                            resistivity_list.append(rho_a)
+                        else:
+                            rho_a = self.readings[k].Vdp[j].Rho
+                            resistivity_list.append(rho_a)
 
         return np.vstack(resistivity_list)
 
-    def getFrequencyComponent(self, reject="Rho"):
+    def getFrequencyComponent(self, reject="app_rho"):
         """
         Exports all the frequency component data
 
@@ -1815,16 +1879,16 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if reject is "Rho":
+                if reject is "app_rho":
                     if self.readings[k].Vdp[j].flagRho == "Accept":
                         c_list.append(self.readings[k].Vdp[j].c)
-                elif reject is "Mx":
+                elif reject is "app_mx":
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         c_list.append(self.readings[k].Vdp[j].c)
 
         return np.vstack(c_list)
 
-    def getTimeConstants(self, reject="Rho"):
+    def getTimeConstants(self, reject="app_rho"):
         """
         Exports all the time constant data
 
@@ -1837,10 +1901,10 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if reject is "Rho":
+                if reject is "app_rho":
                     if self.readings[k].Vdp[j].flagRho == "Accept":
                         tau_list.append(self.readings[k].Vdp[j].tau)
-                elif reject is "Mx":
+                elif reject is "app_mx":
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         tau_list.append(self.readings[k].Vdp[j].tau)
 
@@ -1859,10 +1923,10 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if reject is "Rho":
+                if reject is "app_rho":
                     if self.readings[k].Vdp[j].flagRho == "Accept":
                         eta_list.append(self.readings[k].Vdp[j].eta)
-                elif reject is "Mx":
+                elif reject is "app_mx":
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         eta_list.append(self.readings[k].Vdp[j].eta)
 
@@ -1881,10 +1945,10 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if reject is "Rho":
+                if reject is "app_rho":
                     if self.readings[k].Vdp[j].flagRho == "Accept":
                         error_list.append(self.readings[k].Vdp[j].Mx_err)
-                elif reject is "Mx":
+                elif reject is "app_mx":
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         error_list.append(self.readings[k].Vdp[j].Mx_err)
                 else:
@@ -1892,7 +1956,7 @@ class Jpatch:
 
         return np.vstack(error_list)
 
-    def getVpDivInErrors(self):
+    def getVpDivInErrors(self, reject=None):
         """
         Exports all the eta data
 
@@ -1905,7 +1969,15 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if self.readings[k].Vdp[j].flagRho == "Accept":
+                if reject == 'app_mx':
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        err = (self.readings[k].Vdp[j].Vp_err + self.readings[k].Vdp[j].In_err) / 100.
+                        error_list.append(err)
+                elif reject == 'app_rho':
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        err = (self.readings[k].Vdp[j].Vp_err + self.readings[k].Vdp[j].In_err) / 100.
+                        error_list.append(err)
+                else:
                     err = (self.readings[k].Vdp[j].Vp_err + self.readings[k].Vdp[j].In_err) / 100.
                     error_list.append(err)
 
@@ -1924,11 +1996,11 @@ class Jpatch:
             for k in range(num_rdg):
                 num_dipole = len(self.readings[k].Vdp)
                 for j in range(num_dipole):
-                    if reject is "Rho":
+                    if reject is "app_rho":
                         if self.readings[k].Vdp[j].flagRho == "Accept":
                             index = np.array([k, j])
                             index_list.append(index)
-                    elif reject is "Mx":
+                    elif reject is "app_mx":
                         if self.readings[k].Vdp[j].flagMx == "Accept":
                             index = np.array([k, j])
                             index_list.append(index)
@@ -1937,7 +2009,7 @@ class Jpatch:
 
         return np.vstack(index_list)
 
-    def getGeometricFactor(self):
+    def getGeometricFactor(self, reject=None):
         """
         Exports all the geometry factor data
 
@@ -1950,16 +2022,30 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if (self.readings[k].Vdp[j].flagRho == "Accept"):
-                    # k_a = self.readings[k].Vdp[j].K
+                if reject == 'app_rho':
+                    if (self.readings[k].Vdp[j].flagRho == "Accept"):
+                        # k_a = self.readings[k].Vdp[j].K
+                        k_a = self.readings[k].Vdp[j].calcGeoFactor(self.readings[k].Idp)
+                        try:
+                            k_list.append(k_a)
+                        except ZeroDivisionError:
+                            k_list.append(0);
+                elif reject == 'app_mx':
+                    if (self.readings[k].Vdp[j].flagMx == "Accept"):
+                        k_a = self.readings[k].Vdp[j].calcGeoFactor(self.readings[k].Idp)
+                        try:
+                            k_list.append(k_a)
+                        except ZeroDivisionError:
+                            k_list.append(0);
+                else:
                     k_a = self.readings[k].Vdp[j].calcGeoFactor(self.readings[k].Idp)
                     try:
-                        k_list.append(1 / k_a)
+                        k_list.append(k_a)
                     except ZeroDivisionError:
                         k_list.append(0);
         return np.asarray(k_list)
 
-    def getVoltages(self):
+    def getVoltages(self, reject=None):
         """
         Exports all the geometry factor data
 
@@ -1972,13 +2058,53 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if self.readings[k].Vdp[j].flagMx == "Accept":
+                if reject == 'app_mx':
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        Vp = self.readings[k].Vdp[j].Vp
+                        k_a = Vp
+                        k_list.append(k_a)
+                elif reject == 'app_rho':
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        Vp = self.readings[k].Vdp[j].Vp
+                        k_a = Vp
+                        k_list.append(k_a)
+                else:
                     Vp = self.readings[k].Vdp[j].Vp
                     k_a = Vp
                     k_list.append(k_a)
+
         return np.asarray(k_list)
 
-    def getApparentChageability(self):
+    def reCalcApparentChageability(self, start, stop, reject=None):
+        """
+        Exports all the apparent chargeability data
+
+        Output:
+        numpy array [value]
+
+        """
+        chargeability_list = []
+        num_rdg = len(self.readings)
+        cnt = 0
+        window_widths = self.window_width
+        for k in range(num_rdg):
+            num_dipole = len(self.readings[k].Vdp)
+            for j in range(num_dipole):
+                if reject == 'app_mx':
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
+                        chargeability_list.append(mx_a)
+                elif reject == 'app_rho':
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
+                        chargeability_list.append(mx_a)
+                else:
+                    mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
+                    chargeability_list.append(mx_a)
+
+        return np.asarray(chargeability_list)
+
+    def getApparentChageability(self, reject=None):
         """
         Exports all the apparent chargeability data
 
@@ -1992,26 +2118,45 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if self.readings[k].Vdp[j].flagMx == "Accept":
+                if reject == 'app_mx':
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        vs = np.sum(self.readings[k].Vdp[j].Vs)
+                        Vs = self.readings[k].Vdp[j].Vs
+                        Vp = self.readings[k].Vdp[j].Vp
+                        mx_a = (self.readings[k].Vdp[j].Mx * (self.readings[k].Vdp[j].Vp / 1e3))
+                        Vp = self.readings[k].Vdp[j].Vp
+                        # Vs = self.readings[k].Vdp[j].Vs
+                        cnt = cnt + 1
+                        mx_a = (mx_a) / (Vp / 1e3)
+                            # print("{0} VS: {1} & VP: {2}".format(cnt, vs, Vp))
+                        chargeability_list.append(mx_a)
+                elif reject == 'app_rho':
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        vs = np.sum(self.readings[k].Vdp[j].Vs)
+                        Vs = self.readings[k].Vdp[j].Vs
+                        Vp = self.readings[k].Vdp[j].Vp
+                        mx_a = (self.readings[k].Vdp[j].Mx * (self.readings[k].Vdp[j].Vp / 1e3))
+                        Vp = self.readings[k].Vdp[j].Vp
+                        # Vs = self.readings[k].Vdp[j].Vs
+                        cnt = cnt + 1
+                        mx_a = (mx_a) / (Vp / 1e3)
+                            # print("{0} VS: {1} & VP: {2}".format(cnt, vs, Vp))
+                        chargeability_list.append(mx_a)
+                else:
                     vs = np.sum(self.readings[k].Vdp[j].Vs)
                     Vs = self.readings[k].Vdp[j].Vs
                     Vp = self.readings[k].Vdp[j].Vp
                     mx_a = (self.readings[k].Vdp[j].Mx * (self.readings[k].Vdp[j].Vp / 1e3))
-                    if vs < 0 and self.readings[k].Vdp[j].Vp < 0:
-                        Vp = np.abs(self.readings[k].Vdp[j].Vp)
-                        Vs = self.readings[k].Vdp[j].Vs * -1
-                        cnt = cnt + 1
-                        mx_a = (mx_a * -1) / (Vp / 1e3)
-                    else:
-                        Vp = self.readings[k].Vdp[j].Vp
-                        Vs = self.readings[k].Vdp[j].Vs
-                        cnt = cnt + 1
-                        mx_a = (mx_a) / (Vp / 1e3)
+                    Vp = self.readings[k].Vdp[j].Vp
+                    # Vs = self.readings[k].Vdp[j].Vs
+                    cnt = cnt + 1
+                    mx_a = (mx_a) / (Vp / 1e3)
                         # print("{0} VS: {1} & VP: {2}".format(cnt, vs, Vp))
                     chargeability_list.append(mx_a)
+
         return np.asarray(chargeability_list)
 
-    def getNullFactors(self):
+    def getNullFactors(self, reject=None):
         """
         Exports all the coupling factor data
 
@@ -2024,11 +2169,18 @@ class Jpatch:
         for rdg in range(num_rdg):
             num_dipole = len(self.readings[rdg].Vdp)
             for dp in range(num_dipole):
-                if self.readings[rdg].Vdp[dp].flagRho == "Accept":
-                    null_list.append(self.readings[rdg].Vdp[dp].coupling)
+                if reject == 'app_rho':
+                    if self.readings[rdg].Vdp[dp].flagRho == "Accept":
+                        null_list.append(self.readings[rdg].Vdp[dp].coupling)
+                elif reject == 'app_mx':
+                    if self.readings[rdg].Vdp[dp].flagMx == "Accept":
+                        null_list.append(self.readings[rdg].Vdp[dp].coupling)
+                else:
+                        null_list.append(self.readings[rdg].Vdp[dp].coupling)
+
         return np.asarray(null_list)
 
-    def getCurrents(self):
+    def getCurrents(self, reject=None):
         """
         Exports all the In data
 
@@ -2041,12 +2193,21 @@ class Jpatch:
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                if self.readings[k].Vdp[j].flagRho == "Accept":
+                if reject == 'app_rho':
+                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                        In = np.abs(self.readings[k].Vdp[j].In)
+                        in_list.append(In)
+                elif reject == 'app_mx':
+                    if self.readings[k].Vdp[j].flagMx == "Accept":
+                        In = np.abs(self.readings[k].Vdp[j].In)
+                        in_list.append(In)
+                else:
                     In = np.abs(self.readings[k].Vdp[j].In)
                     in_list.append(In)
+
         return np.asarray(in_list)
 
-    def getAspacings(self, local=False, direction=None):
+    def getAspacings(self, local=False, direction=None, reject=None):
         
         a_list = []
         num_rdg = len(self.readings)
@@ -2055,7 +2216,15 @@ class Jpatch:
                 for k in range(num_rdg):
                     num_dipole = len(self.readings[k].Vdp)
                     for j in range(num_dipole):
-                        if self.readings[k].Vdp[j].flagRho == "Accept":
+                        if reject == 'app_rho':
+                            if self.readings[k].Vdp[j].flagRho == "Accept":
+                                sep = np.abs(self.readings[k].Vdp[j].getAseperationLocal(direction=direction))
+                                a_list.append(sep)
+                        if reject == 'app_mx':
+                            if self.readings[k].Vdp[j].flagMx == "Accept":
+                                sep = np.abs(self.readings[k].Vdp[j].getAseperationLocal(direction=direction))
+                                a_list.append(sep)
+                        else:
                             sep = np.abs(self.readings[k].Vdp[j].getAseperationLocal(direction=direction))
                             a_list.append(sep)
             else:
@@ -2064,7 +2233,15 @@ class Jpatch:
             for k in range(num_rdg):
                 num_dipole = len(self.readings[k].Vdp)
                 for j in range(num_dipole):
-                    if self.readings[k].Vdp[j].flagRho == "Accept":
+                    if reject == 'app_rho':
+                        if self.readings[k].Vdp[j].flagRho == "Accept":
+                            sep = np.abs(self.readings[k].Vdp[j].getAseperation())
+                            a_list.append(sep)
+                    elif reject == 'app_mx':
+                        if self.readings[k].Vdp[j].flagMx == "Accept":
+                            sep = np.abs(self.readings[k].Vdp[j].getAseperation())
+                            a_list.append(sep)
+                    else:
                         sep = np.abs(self.readings[k].Vdp[j].getAseperation())
                         a_list.append(sep)
         return a_list
@@ -2122,7 +2299,7 @@ class Jpatch:
                 tx = np.array([self.readings[k].Idp.Tx1East,
                               self.readings[k].Idp.Tx1North,
                               self.readings[k].Idp.Tx1Elev])
-                # src_list.append(tx)
+                src_list.append(tx)
         else:
             for k in range(num_rdg):
                 num_dipole = len(self.readings[k].Vdp)
@@ -2133,12 +2310,12 @@ class Jpatch:
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         tx.append(np.array([self.readings[k].Idp.Tx1East,
                                             self.readings[k].Idp.Tx1North]))
-            src_list = np.vstack(tx)
+                src_list = np.vstack(tx)
         # number_of_src = len(src_list)
         # src = np.zeros((number_of_src, 6))
         # for tx in range(number_of_src):
         #     src[tx, :] = src_list[tx]
-        return src_list
+        return np.asarray(src_list)
 
     def getDipoles(self):
         """
@@ -2180,6 +2357,30 @@ class Jpatch:
                 #     if self.readings[k].Vdp[j].flagRho
                 count += 1
         return count
+
+    def CompareDatabase2RecalcValues(self, mx_start, mx_end, reject=None):
+        calc_mx = self.reCalcApparentChageability(mx_start, mx_end, reject=reject)
+        mx = self.getApparentChageability(reject=reject)
+        calc_rho = self.getApparentResistivity(reject=reject)
+        rho = self.getApparentResistivity(reject=reject, calc=False)
+        fig = plt.figure()
+        ax1 = fig.add_subplot(221)
+        ax2 = fig.add_subplot(222)
+        ax3 = fig.add_subplot(223)
+        ax4 = fig.add_subplot(224)
+
+        ax1.set_title(r'$\rho$')
+        ax2.set_title(r'$\rho$' + ' diff')
+        ax3.set_title(r'$\eta$')
+        ax4.set_title(r'$\eta$' + ' diff')
+
+        ax1.plot(mx, '.')
+        ax1.plot(calc_mx, '.r', markersize=1)
+        ax2.plot(calc_mx - mx, 'or')
+        ax3.plot(rho, '.')
+        ax3.plot(calc_rho, '.r', markersize=1)
+        ax4.plot(calc_rho - rho, 'or')
+        plt.show()
 
     def createDcSurvey(self, data_type, ip_type=None):
         """
@@ -2278,6 +2479,135 @@ class Jpatch:
 
         return survey
 
+
+    def plotGpsOverDatabaseLocations(self, gps_input=None):
+        if gps_input is not None:
+            tx = self.getSources()
+            rx = self.getDipoles()
+            plt.plot(tx[:, 0], tx[:, 1], 'oc')
+            plt.plot(tx[:, 3], tx[:, 4], 'oc')
+            plt.plot(rx[:, 0], rx[:, 1], 'oc')
+            plt.plot(gps_input[0, :], gps_input[1, :], '+k')
+            plt.xlabel('Easting (m)')
+            plt.ylabel('Northing (m)')
+            plt.title('Database Locations & GPS View')
+            plt.show()
+        else:
+            print("[INFO] Please provide gps input data!!!!")
+
+
+    def checkDipoleAppRhoPolarityPerReading(self, num_readings=None,
+                                            gps_locations=None,
+                                            dipole_dipole=False):
+        if num_readings is not None:
+            num_rdg = num_readings
+            for rdg in range(int(num_rdg)):
+                self.readings[rdg].createNodeDB()
+                if gps_locations is not None:
+                    plt.plot(gps_locations[0, :], gps_locations[1, :], '+k')
+                if dipole_dipole:
+                    tx1x = self.readings[rdg].Idp.Tx1East
+                    tx1y = self.readings[rdg].Idp.Tx1North
+                    tx2x = self.readings[rdg].Idp.Tx2East
+                    tx2y = self.readings[rdg].Idp.Tx2North
+                    plt.plot([tx1x, tx2x], [tx1y, tx2y], '-dk')
+                else:
+                    tx1x = self.readings[rdg].Idp.Tx1East
+                    tx1y = self.readings[rdg].Idp.Tx1North
+                    plt.plot(tx1x, tx1y, 'dk')
+
+                for idx in range(len(self.readings[rdg].node_db)):
+                    x = self.readings[rdg].node_locs[idx][0]
+                    y = self.readings[rdg].node_locs[idx][1]
+                    plt.plot(x, y, 'k*')
+                    plt.text(x, y, '%s' % self.readings[rdg].node_db[idx])
+                plt.title("rec: {0}".format(self.readings[rdg].MemNumber))
+                for dp in range(len(self.readings[rdg].Vdp)):
+                    rx1x = self.readings[rdg].Vdp[dp].Rx1East
+                    rx1y = self.readings[rdg].Vdp[dp].Rx1North
+                    rx2x = self.readings[rdg].Vdp[dp].Rx2East
+                    rx2y = self.readings[rdg].Vdp[dp].Rx2North
+                    In = self.readings[rdg].Idp
+                    if self.readings[rdg].Vdp[dp].calcRho(In) > 0:
+                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-ob')
+                    else:
+                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-or')
+                    
+                plt.show()
+        else:
+            num_rdg = len(self.readings)
+            for rdg in range(int(num_rdg)):
+                self.readings[rdg].createNodeDB()
+                if gps_locations is not None:
+                    plt.plot(gps_locations[0, :], gps_locations[1, :], '+k')
+                for idx in range(len(self.readings[rdg].node_db)):
+                    x = self.readings[rdg].node_locs[idx][0]
+                    y = self.readings[rdg].node_locs[idx][1]
+                    plt.plot(x, y, 'k*')
+                    plt.text(x, y, '%s' % self.readings[rdg].node_db[idx])
+                plt.title("rec: {0}".format(self.readings[rdg].MemNumber))
+                for dp in range(len(self.readings[rdg].Vdp)):
+                    rx1x = self.readings[rdg].Vdp[dp].Rx1East
+                    rx1y = self.readings[rdg].Vdp[dp].Rx1North
+                    rx2x = self.readings[rdg].Vdp[dp].Rx2East
+                    rx2y = self.readings[rdg].Vdp[dp].Rx2North
+                    In = self.readings[rdg].Idp
+                    if self.readings[rdg].Vdp[dp].calcRho(In) > 0:
+                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-ob')
+                    else:
+                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-or')
+                    
+                plt.show()
+    
+
+    def plotHistogramOfDataVitals(self, reject='app_rho',
+                                  log_rho=False, log_vp=False):
+        fig = plt.figure()
+        ax1 = fig.add_subplot(241)
+        ax2 = fig.add_subplot(242)
+        ax3 = fig.add_subplot(243)
+        ax4 = fig.add_subplot(244)
+        ax5 = fig.add_subplot(245)
+        ax6 = fig.add_subplot(246)
+        ax7 = fig.add_subplot(247)
+        ax8 = fig.add_subplot(248)
+
+        ax1.set_title(r'$\rho$')
+        ax2.set_title("error V/I")
+        ax3.set_title("K")
+        ax4.set_title("V")
+        ax5.set_title(r'$\eta$')
+        ax6.set_title("Null")
+        ax7.set_title("I")
+        ax8.set_title("a")
+
+        rho = self.getApparentResistivity(reject=reject)
+        vp_i_error = self.getVpDivInErrors(reject=reject)
+        gk = self.getGeometricFactor(reject=reject)
+        voltages = self.getVoltages(reject=reject)
+        mx = self.getApparentChageability(reject=reject)
+        null = self.getNullFactors(reject=reject)
+        current = self.getCurrents(reject=reject)
+        a = self.getAspacings(reject=reject)
+
+        if log_rho:
+            ax1.hist(np.log(np.abs(rho)), 50)
+            ax1.set_title("log(" + r'$\rho$' + ")")
+        else:
+            ax1.hist(rho, 50)
+        ax2.hist(vp_i_error, 25)
+        ax3.hist(gk, 50)
+        if log_vp:
+            ax4.hist(np.log(voltages), 50)
+            ax4.set_title("log(V)")
+        else:
+            ax4.hist(voltages, 50)
+        ax5.hist(mx, 50)
+        ax6.hist(null, 50)
+        ax7.hist(current, 50)
+        ax8.hist(a)
+
+        plt.show()
 
 class Jreadtxtline:
     """

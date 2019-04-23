@@ -1368,7 +1368,11 @@ class JvoltDipole:
         widths = window_widths[start:stop]
         vs_ = self.Vs[start:stop]
         mx_calc = np.sum(vs_ * widths) / np.sum(widths)
-        return mx_calc / (self.Vp / 1000.0)
+        if self.Vp != 0:
+            mx_calc = mx_calc / (self.Vp / 1000.0)
+        else:
+            mx_calc = -99.0
+        return mx_calc
 
 
 class Jreading:
@@ -2161,7 +2165,7 @@ class Jpatch:
         numpy array [value]
 
         """
-        k_list = []
+        vp_list = []
         num_rdg = len(self.readings)
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
@@ -2169,19 +2173,22 @@ class Jpatch:
                 if reject == 'app_mx':
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         Vp = self.readings[k].Vdp[j].Vp
-                        k_a = Vp
-                        k_list.append(k_a)
+                        vp_list.append(Vp)
+                        if Vp == 0:
+                            print("[WARNING] Vp of ZERO at rdg: {0} & dp: {1}".format(self.readings[k].Vdp[j].reading, self.readings[k].Vdp[j].dipole))
                 elif reject == 'app_rho':
                     if self.readings[k].Vdp[j].flagRho == "Accept":
                         Vp = self.readings[k].Vdp[j].Vp
-                        k_a = Vp
-                        k_list.append(k_a)
+                        vp_list.append(Vp)
+                        if Vp == 0:
+                            print("[WARNING] Vp of ZERO at rdg: {0} & dp: {1}".format(self.readings[k].Vdp[j].reading, self.readings[k].Vdp[j].dipole)) 
                 else:
                     Vp = self.readings[k].Vdp[j].Vp
-                    k_a = Vp
-                    k_list.append(k_a)
+                    vp_list.append(Vp)
+                    if Vp == 0:
+                        print("[WARNING] Vp of ZERO at rdg: {0} & dp: {1}".format(self.readings[k].Vdp[j].reading, self.readings[k].Vdp[j].dipole)) 
 
-        return np.asarray(k_list)
+        return np.asarray(vp_list)
 
     def reCalcApparentChageability(self, start, stop, reject=None):
         """
@@ -2199,15 +2206,21 @@ class Jpatch:
             for j in range(num_dipole):
                 if reject == 'app_mx':
                     if self.readings[k].Vdp[j].flagMx == "Accept":
-                        mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
-                        chargeability_list.append(mx_a)
+                        mx_a = self.readings[k].Vdp[j].Mx
+                        if not np.isinf(mx_a):
+                            mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
+                            chargeability_list.append(mx_a)
                 elif reject == 'app_rho':
                     if self.readings[k].Vdp[j].flagRho == "Accept":
+                        mx_a = self.readings[k].Vdp[j].Mx
+                        if not np.isinf(mx_a):
+                            mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
+                            chargeability_list.append(mx_a)
+                else:
+                    mx_a = self.readings[k].Vdp[j].Mx
+                    if not np.isinf(mx_a):
                         mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
                         chargeability_list.append(mx_a)
-                else:
-                    mx_a = self.readings[k].Vdp[j].calcMx(window_widths, start, stop)
-                    chargeability_list.append(mx_a)
 
         return np.asarray(chargeability_list)
 
@@ -2227,14 +2240,23 @@ class Jpatch:
                 if reject == 'app_mx':
                     if self.readings[k].Vdp[j].flagMx == "Accept":
                         mx_a = self.readings[k].Vdp[j].Mx
-                        chargeability_list.append(mx_a)
+                        if np.isinf(mx_a):
+                            print("[WARNING] found inf Mx at rdg: {0} & dp: {1}".format(self.readings[k].Vdp[j].reading, self.readings[k].Vdp[j].dipole))
+                        else:
+                            chargeability_list.append(mx_a)
                 elif reject == 'app_rho':
                     if self.readings[k].Vdp[j].flagRho == "Accept":
                         mx_a = self.readings[k].Vdp[j].Mx
-                        chargeability_list.append(mx_a)
+                        if np.isinf(mx_a):
+                            print("[WARNING] found inf Mx at rdg: {0} & dp: {1}".format(self.readings[k].Vdp[j].reading, self.readings[k].Vdp[j].dipole))
+                        else:
+                            chargeability_list.append(mx_a)
                 else:
                     mx_a = self.readings[k].Vdp[j].Mx
-                    chargeability_list.append(mx_a)
+                    if np.isinf(mx_a):
+                        print("[WARNING] found inf Mx at rdg: {0} & dp{1}: ".format(self.readings[k].Vdp[j].reading, self.readings[k].Vdp[j].dipole))
+                    else:
+                        chargeability_list.append(mx_a)
 
         return np.asarray(chargeability_list)
 
@@ -2327,7 +2349,7 @@ class Jpatch:
                         a_list.append(sep)
         return a_list
 
-    def getSources(self, dipole=False):
+    def getSources(self, dipole=False, local=False):
         """
         Exports all the tx locations to a numpy array
 
@@ -2340,17 +2362,7 @@ class Jpatch:
         num_rdg = len(self.readings)
         if not dipole:
             for k in range(num_rdg):
-                tx = np.array([self.readings[k].Idp.Tx1East,
-                               self.readings[k].Idp.Tx1North,
-                               self.readings[k].Idp.Tx1Elev,
-                               self.readings[k].Idp.Tx2East,
-                               self.readings[k].Idp.Tx2North,
-                               self.readings[k].Idp.Tx2Elev])
-                src_list.append(tx)
-        else:
-            for k in range(num_rdg):
-                num_dipole = len(self.readings[k].Vdp)
-                for j in range(num_dipole):
+                if not local:
                     tx = np.array([self.readings[k].Idp.Tx1East,
                                    self.readings[k].Idp.Tx1North,
                                    self.readings[k].Idp.Tx1Elev,
@@ -2358,10 +2370,35 @@ class Jpatch:
                                    self.readings[k].Idp.Tx2North,
                                    self.readings[k].Idp.Tx2Elev])
                     src_list.append(tx)
-        # number_of_src = len(src_list)
-        # src = np.zeros((number_of_src, 6))
-        # for tx in range(number_of_src):
-        #     src[tx, :] = src_list[tx]
+                else:
+                    tx = np.array([self.readings[k].Idp.Tx1x,
+                                   self.readings[k].Idp.Tx1y,
+                                   self.readings[k].Idp.Tx1Elev,
+                                   self.readings[k].Idp.Tx2x,
+                                   self.readings[k].Idp.Tx2x,
+                                   self.readings[k].Idp.Tx2Elev])
+                    src_list.append(tx)
+        else:
+            for k in range(num_rdg):
+                num_dipole = len(self.readings[k].Vdp)
+                for j in range(num_dipole):
+                    if not local:
+                        tx = np.array([self.readings[k].Idp.Tx1East,
+                                       self.readings[k].Idp.Tx1North,
+                                       self.readings[k].Idp.Tx1Elev,
+                                       self.readings[k].Idp.Tx2East,
+                                       self.readings[k].Idp.Tx2North,
+                                       self.readings[k].Idp.Tx2Elev])
+                        src_list.append(tx)
+                    else:
+                        tx = np.array([self.readings[k].Idp.Tx1x,
+                                   self.readings[k].Idp.Tx1y,
+                                   self.readings[k].Idp.Tx1Elev,
+                                   self.readings[k].Idp.Tx2x,
+                                   self.readings[k].Idp.Tx2x,
+                                   self.readings[k].Idp.Tx2Elev])
+                        src_list.append(tx)
+
         return np.asarray(src_list)
 
     def getSources2(self, dipole=False):
@@ -2398,7 +2435,7 @@ class Jpatch:
         #     src[tx, :] = src_list[tx]
         return np.asarray(src_list)
 
-    def getDipoles(self):
+    def getDipoles(self, local=False):
         """
         Exports all the tx locations to a numpy array
 
@@ -2406,19 +2443,27 @@ class Jpatch:
         numpy array [x0,y0,z0,x1,y1,z1] (p1,p2)
 
         """
-
         dipole_list = []
         num_rdg = len(self.readings)
         for k in range(num_rdg):
             num_dipole = len(self.readings[k].Vdp)
             for j in range(num_dipole):
-                rx = np.array([self.readings[k].Vdp[j].Rx1East,
-                               self.readings[k].Vdp[j].Rx1North,
-                               self.readings[k].Vdp[j].Rx1Elev,
-                               self.readings[k].Vdp[j].Rx2East,
-                               self.readings[k].Vdp[j].Rx2North,
-                               self.readings[k].Vdp[j].Rx2Elev])
-                dipole_list.append(rx)
+                if not local:
+                    rx = np.array([self.readings[k].Vdp[j].Rx1East,
+                                   self.readings[k].Vdp[j].Rx1North,
+                                   self.readings[k].Vdp[j].Rx1Elev,
+                                   self.readings[k].Vdp[j].Rx2East,
+                                   self.readings[k].Vdp[j].Rx2North,
+                                   self.readings[k].Vdp[j].Rx2Elev])
+                    dipole_list.append(rx)
+                else:
+                    rx = np.array([self.readings[k].Vdp[j].Rx1x,
+                                   self.readings[k].Vdp[j].Rx1y,
+                                   self.readings[k].Vdp[j].Rx1Elev,
+                                   self.readings[k].Vdp[j].Rx2x,
+                                   self.readings[k].Vdp[j].Rx2y,
+                                   self.readings[k].Vdp[j].Rx2Elev])
+                    dipole_list.append(rx)
         number_of_dipoles = len(dipole_list)
         dipoles = np.zeros((number_of_dipoles, 6))
         for rx in range(number_of_dipoles):
@@ -2559,22 +2604,45 @@ class Jpatch:
 
         return survey
 
-    def plotGpsOverDatabaseLocations(self, gps_input=None):
+    def plotGpsOverDatabaseLocations(self, gps_input=None, rx=True, tx=True, dipole_dipole=False, local=False):
         if gps_input is not None:
-            tx = self.getSources()
-            rx = self.getDipoles()
-            plt.plot(tx[:, 0], tx[:, 1], 'oc')
-            plt.plot(tx[:, 3], tx[:, 4], 'oc')
-            plt.plot(rx[:, 0], rx[:, 1], 'oc')
-            plt.plot(gps_input[0, :], gps_input[1, :], '+k')
-            plt.xlabel('Easting (m)')
-            plt.ylabel('Northing (m)')
-            plt.title('Database Locations & GPS View')
-            plt.show()
+            if rx and tx:
+                tx = self.getSources(local=local)
+                rx = self.getDipoles(local=local)
+                plt.plot(tx[:, 0], tx[:, 1], 'oc')
+                if dipole_dipole:
+                    plt.plot(tx[:, 3], tx[:, 4], 'oc')
+                plt.plot(rx[:, 0], rx[:, 1], 'oc')
+                plt.plot(gps_input[0, :], gps_input[1, :], '+k')
+                plt.xlabel('Easting (m)')
+                plt.ylabel('Northing (m)')
+                plt.title('Database Locations & GPS View')
+                plt.grid()
+                plt.show()
+            elif rx:
+                rx = self.getDipoles(local=local)
+                plt.plot(rx[:, 0], rx[:, 1], 'ob')
+                plt.plot(gps_input[0, :], gps_input[1, :], '+k')
+                plt.xlabel('Easting (m)')
+                plt.ylabel('Northing (m)')
+                plt.title('Database Rx Locations & GPS View')
+                plt.grid()
+                plt.show()
+            elif tx:
+                tx = self.getSources(local=local)
+                plt.plot(tx[:, 0], tx[:, 1], 'or')
+                if dipole_dipole:
+                    plt.plot(tx[:, 3], tx[:, 4], 'or')
+                plt.plot(gps_input[0, :], gps_input[1, :], '+k')
+                plt.xlabel('Easting (m)')
+                plt.ylabel('Northing (m)')
+                plt.grid()
+                plt.title('Database Tx Locations & GPS View')
+                plt.show()
         else:
             print("[INFO] Please provide gps input data!!!!")
 
-    def compareInjectedCurrents2fieldDDN(self, ddn=None, reject=None):
+    def compareInjectedCurrents2fieldDDN(self, ddn=None, reject=None, line_dir='ew'):
         if ddn is None:
             print("[INFO] Please provide a DDN filed from the field")
         else:
@@ -2586,10 +2654,20 @@ class Jpatch:
             # create list of difference data
             diff_in = []
             in_ = []
+            in_local = []
+            rec_local = []
             diff_recs = []
             num_rdg = len(self.readings)
             for rdg in range(num_rdg):
                 num_dipole = len(self.readings[rdg].Vdp)
+
+                if line_dir == 'ew':
+                    in_local.append(self.readings[rdg].Idp.Tx1x)
+                    rec_local.append(int(self.readings[rdg].MemNumber))
+                else:
+                    in_local.append(self.readings[rdg].Idp.Tx1y)
+                    rec_local.append(int(self.readings[rdg].MemNumber))
+
                 for dp in range(num_dipole):
                     if reject == 'app_rho':
                         if self.readings[rdg].Vdp[dp].flagRho == 'Accept':
@@ -2632,6 +2710,13 @@ class Jpatch:
             ax2.grid()
             plt.show()
 
+            plt.plot(rec_local, in_local, '^-')
+            plt.plot(ddn[:, 0], ddn[:, 1], '+-r')
+            plt.xlabel('Record #')
+            plt.ylabel('Station')
+            plt.title('Record NUmber Vs Station')
+            plt.show()
+
     def plotLabeledInjections(self, gps=None):
         if gps is None:
             for rdg in range(len(self.readings)):
@@ -2641,9 +2726,12 @@ class Jpatch:
                 stn_x_id = str(int(self.readings[rdg].Idp.Tx1x))
                 stn_y_id = str(int(self.readings[rdg].Idp.Tx1y))
                 id_ = rec_id + "-" + stn_x_id + "-" + stn_y_id
-                plt.plot(tx1x, tx1y, '-dk')
+                plt.plot(tx1x, tx1y, '-dg')
                 plt.text(tx1x, tx1y, '%s' % id_)
                 plt.axis('equal')
+                plt.title("Injection ID map")
+                plt.xlabel('Easting (m)')
+                plt.ylabel('Northing (m)')
                 # plt.rcParams.update({'font.size': 4})
             plt.show()
         else:
@@ -2657,6 +2745,7 @@ class Jpatch:
             for rdg in range(int(num_rdg)):
                 self.readings[rdg].createNodeDB()
                 plt.figure(figsize=(9, 8))
+                plt.axis('equal')
                 if gps_locations is not None:
                     plt.plot(gps_locations[0, :], gps_locations[1, :], '+k')
                 if dipole_dipole:
@@ -2755,7 +2844,7 @@ class Jpatch:
             ax4.set_title("log(V)")
         else:
             ax4.hist(voltages, 50)
-        ax5.hist(mx, 50)
+        ax5.hist(mx, range=None)
         ax6.hist(null, 50)
         ax7.hist(current, 50)
         ax8.hist(a)

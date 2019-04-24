@@ -6,9 +6,9 @@ import DCIPtools as DCIP
 # ============================ User area ==============================
 # ver 0.1
 # set variables
-fname = "E:/Projects/China/Karst/IPDB/B1_NorthBlock-QC.DAT"
-outname = "E:/Projects/China/Karst/IPDB/Lusha_North-QC.log"
-utm_csv = "E:/Projects/China/Karst/IPDB/NorthBlock-Karst-DEM.csv"
+fname = "E:/Projects/debug/Charlotte/hudbay/Hat_Final_100m5750_QC_A.DAT"
+outname = "E:/Projects/debug/Gunjan/orano/L160.log"
+utm_csv = "E:/Projects/debug/Charlotte/hudbay/HudBay_Hat_DEM.csv"
 ddn_info = "E:/Projects/debug/Gunjan/orano/mem_I.txt"
 
 # =====================================================================
@@ -20,7 +20,7 @@ patch = DCIP.loadDias(fname)
 # load DEM CSV file
 utms, local, level = DCIP.loadCsvDem(utm_csv)
 # load DDN info
-ddn = np.genfromtxt(ddn_info)
+# ddn = np.genfromtxt(ddn_info)
 
 
 # =====================================================================
@@ -44,7 +44,7 @@ DCIP.plotLocalAndUtmGrids(local=local, utm=utms)
 
     OUTPUT: log file indicating discontinuities
 """
-patch.checkContinuityInNodeFiles(path=outname)
+# patch.checkContinuityInNodeFiles(path=outname)
 
 
 # =====================================================================
@@ -53,8 +53,8 @@ patch.checkContinuityInNodeFiles(path=outname)
 #     runs through database and compares availble records to
 #     records log
 # """
-rec_log_fpath = "E:/Projects/China/Karst/IPDB/B2/Log/Recordings_0.txt"
-patch.checkForMissingRecords(record_log=rec_log_fpath)
+# rec_log_fpath = "E:/Projects/China/Karst/IPDB/B2/Log/Recordings_0.txt"
+# patch.checkForMissingRecords(record_log=rec_log_fpath)
 
 
 # =====================================================================
@@ -95,7 +95,7 @@ patch.plotGpsOverDatabaseLocations(local, rx=False, tx=True, dipole_dipole=False
     Compares current input from field DDN to database and plots
 .    percent difference and the currents from each
 """
-patch.compareInjectedCurrents2fieldDDN(ddn=ddn, reject=None, line_dir='ns')
+# patch.compareInjectedCurrents2fieldDDN(ddn=ddn, reject=None, line_dir='ns')
 patch.plotLabeledInjections(gps=None)
 
 # =====================================================================
@@ -105,7 +105,7 @@ patch.plotLabeledInjections(gps=None)
     polarity
 """
 patch.checkDipoleAppRhoPolarityPerReading(num_readings=2,
-                                          # gps_locations=utms,
+                                          gps_locations=utms,
                                           dipole_dipole=False)
 
 

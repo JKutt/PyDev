@@ -2491,17 +2491,21 @@ class Jpatch:
         calc_rho = self.getApparentResistivity(reject=reject)
         rho = self.getApparentResistivity(reject=reject, calc=False)
         fig = plt.figure()
+        fig.suptitle('Calculated Vs. Database', fontsize=16)
         ax1 = fig.add_subplot(221)
         ax2 = fig.add_subplot(222)
         ax3 = fig.add_subplot(223)
         ax4 = fig.add_subplot(224)
 
+        mean_drho = str(np.mean(calc_rho - rho))
+        mean_dmx = str(np.mean(calc_mx - mx))
+
         ax3.set_title(r'$\rho$')
         ax3.set_ylabel(r'$\Omega$' + '-m')
-        ax4.set_title(r'$\Delta\rho$')
+        ax4.set_title(r'$\Delta\rho$' + '     mean: ' + mean_drho)
         ax1.set_title(r'$\eta$')
         ax1.set_ylabel('mV/V')
-        ax2.set_title(r'$\Delta\eta$')
+        ax2.set_title(r'$\Delta\eta$' + '     mean: ' + mean_dmx)
 
         ax1.plot(mx, '.')
         ax1.plot(calc_mx, '.r', markersize=1)

@@ -1,31 +1,28 @@
-<project><# Project related>
-  <patch=GRID_NAME><# Grid name>
-  <station=DEV_FULL><# Station Name>
-  <client=DEV_CLIENT><# Client Name>
-  <processor=Hugo Larnier><# Processor name>
-  <folder=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/output_dev><# folder where files will be written>
-  <type=Z><# site type: E/H: Z, H_z/H: T, E + H_z/H: Full>
-  <output_level=1>
+<project>
+	<patch=Flight test 20190328>
+	<station=MT_31>
+	<client=DIAS>
+	<processor=Hugo Larnier>
+	<folder=E:/afmag/flight_20190328/dev/processing/line0>
+	<type=T>
+	<output_level=1>
 <data>
-  <ex=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Ex8.bin><# Path for Ex>
-  <ey=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Ey8.bin><# Path for Ey>
-  <hx=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Hx8.bin><# Path for Hx>
-  <hy=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Hy8.bin><# Path for Hy>
-  <rx=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Rx8.bin><# Path for Rx>
-  <ry=C:/Users/HugoLarnier/Desktop/Dev/PyDev-MT/MT_toolbox/data_MT/Ry8.bin><# Path for Ry>
+	<hz=E:/afmag/flight_20190328/dev/processing/line0/hz31.dat>
+	<hx=E:/afmag/flight_20190328/dev/processing/line0/hx31.dat>
+	<hy=E:/afmag/flight_20190328/dev/processing/line0/hy31.dat>
+	<rx=E:/afmag/flight_20190328/dev/processing/line0/hx31.dat>
+	<ry=E:/afmag/flight_20190328/dev/processing/line0/hy31.dat>
+	<location=5724636.0;401132.03125;0.0;Zone:12>
 <processing_parameters>
-  <tbw=2>
-  <nfft=1024>
-  <overlap=20>
-  <taper=slepian>
-  <index_first_frequency=16>
-  <frequency_increment=4>
-  <nb_increment=4>
-  <length_reduction=2>
-  <nb_reductions=3>
-  <output=dev>
-  <error=jackknife>
-  <local_coherence=0.1>
-  <remote_coherence=0.5>
-  <wavelets=no>
-<filtering>
+	<tbw=2>
+	<nfft=1024>
+	<overlap=20>
+	<taper=slepian>
+	<index_first_frequency=8>
+	<frequency_increment=2>
+	<nb_increment=1>
+	<length_reduction=2>
+	<nb_reductions=5>
+	<output=MT_31>
+	<error=jackknife>
+	<remote_coherence=0.0>

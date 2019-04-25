@@ -3,12 +3,14 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 import h5py
 from glob import glob
 from os import mkdir
 import utm
 import scipy.signal as scygnal
 from subprocess import Popen, PIPE
+from numba import vectorize, guvectorize
 
 """
    NOTES
@@ -79,14 +81,49 @@ def LowPassFilter(data, sampleFreq, orderFilter, freqCut):
     return data
 
 
+@guvectorize(['void(float32[:], float32[:])'], '(n)->(n)', target='cuda')
+def deg2utm(p, q):
+    size_of_data = int(p.size / 2)
+    for idx in range(size_of_data):
+        sa = 6378137.000000
+        sb = 6356752.314245
+        e2 = ((sa**2 - sb**2)**0.5) / sb
+        e2cuadrada = e2**2
+        c = sa**2 / sb
+        lat = p[idx] * (np.pi / 180.0)
+        lon = p[idx + size_of_data] * (np.pi / 180.0)
+        Huso = math.floor((p[idx + size_of_data] / 6) + 31)
+        S = ((Huso * 6) - 183)
+        deltaS = lon - (S * (np.pi / 180))
+        a = math.cos(lat) * math.sin(deltaS)
+        epsilon = 0.5 * math.log((1 + a) / (1 - a))
+        nu = math.atan(math.tan(lat) / math.cos(deltaS)) - lat
+        v = (c / (1.0 + e2cuadrada * (math.cos(lat))**2)**0.5) * 0.9996
+        ta = (e2cuadrada / 2.0) * epsilon**2 * (math.cos(lat))**2
+        a1 = math.sin(2.0 * lat)
+        a2 = a1 * (math.cos(lat))**2
+        j2 = lat + (a1 / 2.0)
+        j4 = ((3.0 * j2) + a2) / 4.0
+        j6 = ((5.0 * j4) + (a2 * (math.cos(lat))**2)) / 3.0
+        alfa = (3.0 / 4.0) * e2cuadrada
+        beta = (5.0 / 3.0) * alfa**2
+        gama = (35.0 / 27.0) * alfa**3
+        Bm = 0.9996 * c * (lat - alfa * j2 + beta * j4 - gama * j6)
+        q[idx] = epsilon * v * (1.0 + (ta / 3.0)) + 500000
+        q[idx + size_of_data] = nu * v * (1.0 + ta) + Bm
+
+        if q[idx + size_of_data] < 0:
+            q[idx + size_of_data] = 9999999 + q[idx + size_of_data]
+
+
 # Path to python
-python_path = 'C:/Users/HugoLarnier/Anaconda3/python.exe'
+python_path = 'C:/ProgramData/Anaconda3/python.exe'
 # Path to diasMT.py
-diasMT_path = 'C:/Users/HugoLarnier/Desktop/Dev/PyDev/MT_toolbox/diasMT.py'
+diasMT_path = 'E:/afmag/PyDev/MT_toolbox/diasMT.py'
 # filepath to the matlab database
-file_path = "C:/Users/HugoLarnier/Desktop/Projects\QMAG/flight_20190328/data/Line30_20190328_211621.mat"
+file_path = "E:/afmag/data/Line30_20190328_211621.mat"
 # folder path to extract .npy files
-output_path = 'C:/Users/HugoLarnier/Desktop/Projects\QMAG/flight_20190328/data/'
+output_path = 'E:/afmag/flight_20190328/data'
 # Time series length to create QMAG stations
 nfft = int(131072 / 2)
 
@@ -150,14 +187,37 @@ for idx in range(lines_to_extract):
     np.save(data_path, mag_reduced_rotated)
 
     lat = np.load(output_path + '/line' + str(idx) + '/lat.npy')
+    lat = np.array(lat, dtype='f')
     lon = np.load(output_path + '/line' + str(idx) + '/lon.npy')
+    lon = np.array(lon, dtype='f')
+    safe_size = 100000
+    chunks = int(np.floor(lat.size / safe_size))
+    # print("data size: {0} & chunks {1}".format(lat.size, chunks))
     if not len(glob(output_path + '/line' + str(idx) + '/utm_flight.npy')):
         utm_flight = np.zeros((len(lat), 2))
-        for latitude, longitude, i in zip(lat, lon, range(len(lat))):
-            print('UTM conversion percentage: ', str(i / len(lat) * 100.), '%')
-            tmp = utm.from_latlon(latitude, longitude)
-            utm_flight[i, 0] = tmp[0]
-            utm_flight[i, 1] = tmp[1]
+        for idz in range(chunks + 1):
+            # print("on chunk: ", idz)
+            if idz == chunks:
+                start = idz * safe_size
+                end = lat.size
+                v = np.hstack((lat[start:end],lon[start:end]))
+                convert_out = deg2utm(v)
+                size_ = int(convert_out.size / 2)
+                utm_flight[start:end, 1] = convert_out[:size_]
+                utm_flight[start:end, 0] = convert_out[size_:]
+            else:
+                start = idz * safe_size
+                end = (idz + 1) * safe_size
+                v = np.hstack((lat[start:end],lon[start:end]))
+                convert_out = deg2utm(v)
+                size_ = int(convert_out.size / 2)
+                utm_flight[start:end, 1] = convert_out[:size_]
+                utm_flight[start:end, 0] = convert_out[size_:]
+        # for latitude, longitude, i in zip(lat, lon, range(len(lat))):
+        #     print('UTM conversion percentage: ', str(i / len(lat) * 100.), '%')
+        #     tmp = utm.from_latlon(latitude, longitude)
+        #     utm_flight[i, 0] = tmp[0]
+        #     utm_flight[i, 1] = tmp[1]
 
         utm_flight = np.asarray(utm_flight)
         np.save(output_path + '/line' + str(idx) + '/utm_flight.npy', utm_flight)
@@ -187,14 +247,14 @@ for idx in range(lines_to_extract):
     nbStations = int(len(data[0]) / nfft) - 1
 
     for i in range(nbStations):
-        path_proc = 'C:/Users/HugoLarnier/Desktop/Projects/QMAG/flight_20190328/dev/processing/'
+        path_proc = 'E:/afmag/flight_20190328/dev/processing/'
         tmp = glob(path_proc + '/line' + str(idx))
         if not len(tmp):
             mkdir(path_proc + '/line' + str(idx))
         else:
             print('Processing folder already created.')
 
-        path_proc = 'C:/Users/HugoLarnier/Desktop/Projects/QMAG/flight_20190328/dev/processing/line' + str(idx)
+        path_proc = 'E:/afmag/flight_20190328/dev/processing/line' + str(idx)
         fOut = open(path_proc + '/hx' + str(i + 1) + '.dat', 'w')
         for j in range(nfft):
             fOut.write(str(X[i * nfft + j]) + '\n')
@@ -239,7 +299,7 @@ for idx in range(lines_to_extract):
                      'MT_' + str(i + 1),
                      'jackknife',
                      '0.0']
-        write_inp_file('C:/Users/HugoLarnier/Desktop/Projects/QMAG/flight_20190328/dev/', arguments)
+        write_inp_file('E:/afmag/PyDev/MT_toolbox/', arguments)
         # Call to diasMT here
         print('Starting MT process')
         print([python_path, diasMT_path])

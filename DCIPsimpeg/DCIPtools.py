@@ -940,6 +940,19 @@ def plotCsvDemLocationDifferences(local=None, utm=None):
         ax4.set_title('Northing difference')
         plt.show()
 
+def removeRemoteFromGPS(gps_data, local, level):
+    gps_edit = []
+    local_edit = []
+    level_edit = []
+    for i in range(len(gps_data[0, :])):
+        if local[0, i] == -9999 or local[0, i] == 9999:
+            print("found remote")
+        else:
+            gps_edit.append(gps_data[:, i])
+            local_edit.append(local[:, i])
+            level_edit.append(level[i])
+    return np.asarray(gps_edit).T, np.asarray(local_edit).T, np.asarray(level_edit).T
+
 def plotLocalAndUtmGrids(local=None, utm=None):
     if local is None or utm is None:
         print("[INFO] Please provide locations info!!!")
@@ -956,6 +969,25 @@ def plotLocalAndUtmGrids(local=None, utm=None):
         ax2.set_ylabel('Northing (m)')
         ax2.set_title('UTM Coords.')
         plt.show()
+
+def calcHomoHalfSpaceVoltage(background, tx1, tx2, rx1, rx2):
+    r1 = ((rx1[0] - tx1[0])**2 +
+          (rx1[1] - tx1[1])**2 +
+          (rx1[2] - tx1[2])**2)**0.5
+    r2 = ((rx2[0] - tx1[0])**2 +
+          (rx2[1] - tx1[1])**2 +
+          (rx2[2] - tx1[2])**2)**0.5
+    r3 = ((rx1[0] - tx2[0])**2 +
+          (rx1[1] - tx2[1])**2 +
+          (rx1[2] - tx2[2])**2)**0.5
+    r4 = ((rx2[0] - tx2[0])**2 +
+          (rx2[1] - tx2[1])**2 +
+          (rx2[2] - tx2[2])**2)**0.5
+    In = 1                                           # normalized current
+    v1 = (In * background) / (2 * np.pi * r1)        # voltage at point 1
+    v2 = -1 * (In * background) / (2 * np.pi * r2)   # voltage at point 2
+    v = v1 + v2                                      # theoretical voltage
+    return v
 
 def loadDias(fileName):
     """
@@ -2625,7 +2657,7 @@ class Jpatch:
                 plt.show()
             elif rx:
                 rx = self.getDipoles(local=local)
-                plt.plot(rx[:, 0], rx[:, 1], 'ob')
+                plt.plot(rx[:, 0], rx[:, 1], 'oc')
                 plt.plot(gps_input[0, :], gps_input[1, :], '+k')
                 plt.xlabel('Easting (m)')
                 plt.ylabel('Northing (m)')
@@ -2634,9 +2666,9 @@ class Jpatch:
                 plt.show()
             elif tx:
                 tx = self.getSources(local=local)
-                plt.plot(tx[:, 0], tx[:, 1], 'or')
+                plt.plot(tx[:, 0], tx[:, 1], 'om')
                 if dipole_dipole:
-                    plt.plot(tx[:, 3], tx[:, 4], 'or')
+                    plt.plot(tx[:, 3], tx[:, 4], 'om')
                 plt.plot(gps_input[0, :], gps_input[1, :], '+k')
                 plt.xlabel('Easting (m)')
                 plt.ylabel('Northing (m)')
@@ -2750,6 +2782,22 @@ class Jpatch:
                 self.readings[rdg].createNodeDB()
                 plt.figure(figsize=(9, 8))
                 plt.axis('equal')
+                for idx in range(len(self.readings[rdg].node_db)):
+                    x = self.readings[rdg].node_locs[idx][0]
+                    y = self.readings[rdg].node_locs[idx][1]
+                    plt.plot(x, y, 'k*')
+                    plt.text(x, y, '%s' % self.readings[rdg].node_db[idx])
+                plt.title("rec: {0}".format(self.readings[rdg].MemNumber))
+                for dp in range(len(self.readings[rdg].Vdp)):
+                    rx1x = self.readings[rdg].Vdp[dp].Rx1East
+                    rx1y = self.readings[rdg].Vdp[dp].Rx1North
+                    rx2x = self.readings[rdg].Vdp[dp].Rx2East
+                    rx2y = self.readings[rdg].Vdp[dp].Rx2North
+                    In = self.readings[rdg].Idp
+                    if self.readings[rdg].Vdp[dp].calcRho(In) > 0:
+                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-ob')
+                    else:
+                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-or')
                 if gps_locations is not None:
                     plt.plot(gps_locations[0, :], gps_locations[1, :], '+k')
                 if dipole_dipole:
@@ -2762,31 +2810,11 @@ class Jpatch:
                     tx1x = self.readings[rdg].Idp.Tx1East
                     tx1y = self.readings[rdg].Idp.Tx1North
                     plt.plot(tx1x, tx1y, 'dk')
-
-                for idx in range(len(self.readings[rdg].node_db)):
-                    x = self.readings[rdg].node_locs[idx][0]
-                    y = self.readings[rdg].node_locs[idx][1]
-                    plt.plot(x, y, 'k*')
-                    plt.text(x, y, '%s' % self.readings[rdg].node_db[idx])
-                plt.title("rec: {0}".format(self.readings[rdg].MemNumber))
-                for dp in range(len(self.readings[rdg].Vdp)):
-                    rx1x = self.readings[rdg].Vdp[dp].Rx1East
-                    rx1y = self.readings[rdg].Vdp[dp].Rx1North
-                    rx2x = self.readings[rdg].Vdp[dp].Rx2East
-                    rx2y = self.readings[rdg].Vdp[dp].Rx2North
-                    In = self.readings[rdg].Idp
-                    if self.readings[rdg].Vdp[dp].calcRho(In) > 0:
-                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-ob')
-                    else:
-                        plt.plot([rx1x, rx2x], [rx1y, rx2y], '-or')
-
                 plt.show()
         else:
             num_rdg = len(self.readings)
             for rdg in range(int(num_rdg)):
                 self.readings[rdg].createNodeDB()
-                if gps_locations is not None:
-                    plt.plot(gps_locations[0, :], gps_locations[1, :], '+k')
                 for idx in range(len(self.readings[rdg].node_db)):
                     x = self.readings[rdg].node_locs[idx][0]
                     y = self.readings[rdg].node_locs[idx][1]
@@ -2803,7 +2831,18 @@ class Jpatch:
                         plt.plot([rx1x, rx2x], [rx1y, rx2y], '-ob')
                     else:
                         plt.plot([rx1x, rx2x], [rx1y, rx2y], '-or')
-
+                if gps_locations is not None:
+                    plt.plot(gps_locations[0, :], gps_locations[1, :], '+k')
+                if dipole_dipole:
+                    tx1x = self.readings[rdg].Idp.Tx1East
+                    tx1y = self.readings[rdg].Idp.Tx1North
+                    tx2x = self.readings[rdg].Idp.Tx2East
+                    tx2y = self.readings[rdg].Idp.Tx2North
+                    plt.plot([tx1x, tx2x], [tx1y, tx2y], '-dk')
+                else:
+                    tx1x = self.readings[rdg].Idp.Tx1East
+                    tx1y = self.readings[rdg].Idp.Tx1North
+                    plt.plot(tx1x, tx1y, 'dk')
                 plt.show()
 
     def plotHistogramOfDataVitals(self, reject='app_rho',

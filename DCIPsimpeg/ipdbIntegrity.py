@@ -6,9 +6,9 @@ import DCIPtools as DCIP
 # ============================ User area ==============================
 # ver 0.1
 # set variables
-fname = "E:/Projects/debug/Charlotte/hudbay/Hat_Final_100m5750_QC_A.DAT"
+fname = "E:/Projects/debug/Gunjan/orano/L160_100snapped.DAT"
 outname = "E:/Projects/debug/Gunjan/orano/L160.log"
-utm_csv = "E:/Projects/debug/Charlotte/hudbay/HudBay_Hat_DEM.csv"
+utm_csv = "E:/Projects/debug/Gunjan/orano/L160_LatLong.csv"
 ddn_info = "E:/Projects/debug/Gunjan/orano/mem_I.txt"
 
 # =====================================================================
@@ -19,9 +19,10 @@ ddn_info = "E:/Projects/debug/Gunjan/orano/mem_I.txt"
 patch = DCIP.loadDias(fname)
 # load DEM CSV file
 utms, local, level = DCIP.loadCsvDem(utm_csv)
+# make location data with remote removed if not dipole-dipole
+utms_edit, local_edit, level_edit = DCIP.removeRemoteFromGPS(utms, local, level)
 # load DDN info
-# ddn = np.genfromtxt(ddn_info)
-
+ddn = np.genfromtxt(ddn_info)
 
 # =====================================================================
 # 1) compares dem to dias database file
@@ -31,7 +32,7 @@ utms, local, level = DCIP.loadCsvDem(utm_csv)
    OUTPUT: plots of local and utm locations
 """
 # plots diferences in locations adjacent
-DCIP.plotCsvDemLocationDifferences(local=local, utm=utms)
+DCIP.plotCsvDemLocationDifferences(local=local_edit, utm=utms_edit)
 # plots survey grid local + utm
 DCIP.plotLocalAndUtmGrids(local=local, utm=utms)
 
@@ -44,7 +45,7 @@ DCIP.plotLocalAndUtmGrids(local=local, utm=utms)
 
     OUTPUT: log file indicating discontinuities
 """
-# patch.checkContinuityInNodeFiles(path=outname)
+patch.checkContinuityInNodeFiles(path=outname)
 
 
 # =====================================================================
@@ -72,11 +73,11 @@ patch.plotGpsOverDatabaseLocations(utms, rx=True, tx=False, dipole_dipole=False)
 # plots tx locations
 patch.plotGpsOverDatabaseLocations(utms, rx=False, tx=True, dipole_dipole=False)
 # plots all electrode locations local
-patch.plotGpsOverDatabaseLocations(local, rx=True, tx=True, dipole_dipole=False, local=True)
+patch.plotGpsOverDatabaseLocations(local_edit, rx=True, tx=True, dipole_dipole=False, local=True)
 # plots rx locations local
-patch.plotGpsOverDatabaseLocations(local, rx=True, tx=False, dipole_dipole=False, local=True)
+patch.plotGpsOverDatabaseLocations(local_edit, rx=True, tx=False, dipole_dipole=False, local=True)
 # plots tx locations local
-patch.plotGpsOverDatabaseLocations(local, rx=False, tx=True, dipole_dipole=False, local=True)
+patch.plotGpsOverDatabaseLocations(local_edit, rx=False, tx=True, dipole_dipole=False, local=True)
 
 # # =====================================================================
 # # 5) Plot Elevations
@@ -95,8 +96,8 @@ patch.plotGpsOverDatabaseLocations(local, rx=False, tx=True, dipole_dipole=False
     Compares current input from field DDN to database and plots
 .    percent difference and the currents from each
 """
-# patch.compareInjectedCurrents2fieldDDN(ddn=ddn, reject=None, line_dir='ns')
-patch.plotLabeledInjections(gps=None)
+patch.compareInjectedCurrents2fieldDDN(ddn=ddn, reject=None, line_dir='ns')
+patch.plotLabeledInjections(gps=utms_edit)
 
 # =====================================================================
 # 7) plot node locations + Node ID for a defined reading
@@ -104,8 +105,8 @@ patch.plotLabeledInjections(gps=None)
     runs through each reading and plots the avaible nodes and dipole
     polarity
 """
-patch.checkDipoleAppRhoPolarityPerReading(num_readings=2,
-                                          gps_locations=utms,
+patch.checkDipoleAppRhoPolarityPerReading(num_readings=8,
+                                          gps_locations=utms_edit,
                                           dipole_dipole=False)
 
 

@@ -1,18 +1,18 @@
 <project>
 	<patch=Flight test 20190328>
-	<station=MT_31>
+	<station=MT_2>
 	<client=DIAS>
 	<processor=Hugo Larnier>
 	<folder=E:/afmag/flight_20190328/dev/processing/line0>
 	<type=T>
 	<output_level=1>
 <data>
-	<hz=E:/afmag/flight_20190328/dev/processing/line0/hz31.dat>
-	<hx=E:/afmag/flight_20190328/dev/processing/line0/hx31.dat>
-	<hy=E:/afmag/flight_20190328/dev/processing/line0/hy31.dat>
-	<rx=E:/afmag/flight_20190328/dev/processing/line0/hx31.dat>
-	<ry=E:/afmag/flight_20190328/dev/processing/line0/hy31.dat>
-	<location=5724636.0;401132.03125;0.0;Zone:12>
+	<hz=E:/afmag/flight_20190328/dev/processing/line0/hz2.dat>
+	<hx=E:/afmag/flight_20190328/dev/processing/line0/hx2.dat>
+	<hy=E:/afmag/flight_20190328/dev/processing/line0/hy2.dat>
+	<rx=E:/afmag/flight_20190328/dev/processing/line0/hx2.dat>
+	<ry=E:/afmag/flight_20190328/dev/processing/line0/hy2.dat>
+	<location=5723019.5;401126.25;0.0;Zone:12>
 <processing_parameters>
 	<tbw=2>
 	<nfft=1024>
@@ -23,6 +23,6 @@
 	<nb_increment=1>
 	<length_reduction=2>
 	<nb_reductions=5>
-	<output=MT_31>
+	<output=MT_2>
 	<error=jackknife>
 	<remote_coherence=0.0>

@@ -118,7 +118,7 @@ class project:
         var_ex = 0
         tmp = glob.glob(self.folder)
         if not len(tmp):
-            print('[ERROR] Check project folder. Seems like it doesn\'t exists'
+            print('[ERROR] Check project folder. Seems like it doesn\'t exists')
             var_ex = 1
 
         if not self.type in ['Z', 'T', 'Full']:

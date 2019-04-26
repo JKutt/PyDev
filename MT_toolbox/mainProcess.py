@@ -247,7 +247,7 @@ for idx in range(lines_to_extract):
     nbStations = int(len(data[0]) / nfft) - 1
 
     for i in range(nbStations):
-        path_proc = 'E:/afmag/flight_20190328/dev/processing/'
+        path_proc = 'E:/afmag/flight_20190328/dev/processing'
         tmp = glob(path_proc + '/line' + str(idx))
         if not len(tmp):
             mkdir(path_proc + '/line' + str(idx))

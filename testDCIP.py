@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import DCIPsimpeg.DCIPtools as DCIP
 
+
 class TestingReCalculationMethods(unittest.TestCase):
 
     # testing rho calculation
@@ -27,7 +28,7 @@ class TestingReCalculationMethods(unittest.TestCase):
         varInfo = DCIP.Jreadtxtline(hdr_line, data_line)
         voltage_dipole = DCIP.JvoltDipole(varInfo)
         current_dipole = DCIP.JinDipole(varInfo)
-        
+
         # calculate expected vp of the homogenous halfspace
         gk = voltage_dipole.calcGeoFactor(current_dipole)
         vp = In * rho * (1 / gk)
@@ -61,7 +62,7 @@ class TestingReCalculationMethods(unittest.TestCase):
         varInfo = DCIP.Jreadtxtline(hdr_line, data_line)
         voltage_dipole = DCIP.JvoltDipole(varInfo)
         current_dipole = DCIP.JinDipole(varInfo)
-        
+
         # calculate expected vp of the homogenous halfspace
         gk = voltage_dipole.calcGeoFactor(current_dipole)
         vp = In * rho * (1 / gk)
@@ -100,7 +101,7 @@ class TestingReCalculationMethods(unittest.TestCase):
         voltage_dipole = DCIP.JvoltDipole(varInfo)
         # create current dipole
         current_dipole = DCIP.JinDipole(varInfo)
-        
+
         # calculate expected vp of the homogenous halfspace
         gk = voltage_dipole.calcGeoFactor(current_dipole)
         vp = In * rho * (1 / gk)
@@ -115,4 +116,3 @@ class TestingReCalculationMethods(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-    

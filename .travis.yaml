@@ -1,0 +1,14 @@
+language: python
+python:
+  - "3.6"
+  - "3.7"
+  # PyPy versions
+  - "pypy3.5"
+# command to install dependencies
+install:
+  - pip install numpy
+  - pip install scipy-stack
+  - pip install matplotlib
+  - pip install SimPEG
+# command to run tests
+script: testDCIP.py
